@@ -412,7 +412,7 @@ function PriorityTasks({ tasks, onAddTask, onToggleTask, onEditTask, onDeleteTas
         <div className="mb-4">
           <DraggableTaskList
             tasks={tasks}
-            onReorder={handleReorder}
+            onReorder={onReorder}
             onToggleTask={onToggleTask}
             onEditTask={onEditTask}
             onDeleteTask={onDeleteTask}
