@@ -855,14 +855,15 @@ export default function TraderPlanner() {
         </div>
       </header>
 
-      {/* Main Grid */}
+      {/* Main Grid - новый полноэкранный дизайн */}
       <main className="relative" style={{ zIndex: 10 }}>
-        <div className="max-w-7xl mx-auto p-4">
-          <div className="flex flex-col xl:flex-row gap-6">
+        <div className="w-full p-4">
+          {/* Основная сетка с задачами справа */}
+          <div className="flex gap-4">
 
-            {/* Weekdays Grid */}
+            {/* Недельные колонки - занимают основное пространство */}
             <div className="flex-1">
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+              <div className="grid grid-cols-5 gap-3">
                 {weekDays.map((day, index) => {
                   const dayKey = format(day, 'yyyy-MM-dd')
                   const isToday = isSameDay(day, new Date())
@@ -871,51 +872,44 @@ export default function TraderPlanner() {
                   return (
                     <div
                       key={dayKey}
-                      className={`trading-card rounded-xl overflow-hidden animate-slide-in neon-border ${
-                        isToday ? 'active' : ''
+                      className={`glass-card rounded-xl p-3 hover:scale-[1.01] transition-all duration-300 ${
+                        isToday ? 'ring-2 ring-red-500/50 shadow-lg shadow-red-500/20' : ''
                       }`}
-                      style={{ animationDelay: `${index * 0.1}s` }}
+                      style={{
+                        background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.95) 0%, rgba(30, 41, 59, 0.8) 100%)',
+                        backdropFilter: 'blur(10px)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        minHeight: '600px'
+                      }}
                     >
-                      {/* Day Header */}
-                      <div
-                        className={`p-4 border-b relative overflow-hidden ${
-                          isToday ? 'border-cyan-400/50' : ''
-                        }`}
-                        style={{
-                          background: isToday
-                            ? 'linear-gradient(135deg, rgba(0, 217, 255, 0.1) 0%, rgba(139, 92, 246, 0.05) 100%)'
-                            : 'var(--bg-secondary)'
-                        }}
-                      >
-                        {isToday && (
-                          <div className="absolute top-0 right-0 px-2 py-1 text-xs font-bold text-gradient">
-                            TODAY
+                      {/* Заголовок дня недели */}
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="text-center flex-1">
+                          <div className="text-sm font-bold mb-1">
+                            {format(day, 'EEEE', { locale: ru })}
                           </div>
-                        )}
-                        <div className="text-center">
-                          <div className="font-bold text-lg capitalize" style={{ color: 'var(--text-primary)' }}>
-                            {format(day, 'EEEEEE', { locale: ru }).toUpperCase()}
-                          </div>
-                          <div className="text-xs font-mono mt-1" style={{ color: 'var(--text-secondary)' }}>
+                          <div className="text-xs text-gray-400">
                             {format(day, 'd MMM', { locale: ru })}
                           </div>
                         </div>
                       </div>
 
                       {/* Pre-Market Section */}
-                      <div className="p-3 border-b pre-market">
-                        <div className="flex items-center gap-2 mb-3">
-                          <Sun size={14} style={{ color: 'var(--warning-yellow)' }} />
+                      <div className="mb-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Sun size={12} style={{ color: 'var(--warning-yellow)' }} />
                           <h4 className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--warning-yellow)' }}>
                             До открытия
                           </h4>
                         </div>
-                        <TickerList
-                          items={dayData.preMarket}
-                          dayKey={dayKey}
-                          type="pre_market"
-                          onSuccess={loadData}
-                        />
+                        <div className="space-y-2" style={{ minHeight: '200px' }}>
+                          <TickerList
+                            items={dayData.preMarket}
+                            dayKey={dayKey}
+                            type="pre_market"
+                            onSuccess={loadData}
+                          />
+                        </div>
                         <TickerInput
                           dayKey={dayKey}
                           type="pre_market"
@@ -924,19 +918,21 @@ export default function TraderPlanner() {
                       </div>
 
                       {/* After-Market Section */}
-                      <div className="p-3 after-market">
-                        <div className="flex items-center gap-2 mb-3">
-                          <Moon size={14} style={{ color: 'var(--neutral-blue)' }} />
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Moon size={12} style={{ color: 'var(--neutral-blue)' }} />
                           <h4 className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--neutral-blue)' }}>
                             После закрытия
                           </h4>
                         </div>
-                        <TickerList
-                          items={dayData.afterMarket}
-                          dayKey={dayKey}
-                          type="after_market"
-                          onSuccess={loadData}
-                        />
+                        <div className="space-y-2" style={{ minHeight: '200px' }}>
+                          <TickerList
+                            items={dayData.afterMarket}
+                            dayKey={dayKey}
+                            type="after_market"
+                            onSuccess={loadData}
+                          />
+                        </div>
                         <TickerInput
                           dayKey={dayKey}
                           type="after_market"
@@ -949,8 +945,8 @@ export default function TraderPlanner() {
               </div>
             </div>
 
-            {/* Sidebar */}
-            <div className="xl:w-80">
+            {/* Боковая панель с задачами - фиксированная ширина справа */}
+            <div className="w-80 flex-shrink-0">
               <PriorityTasks
                 tasks={plannerData.weekendTasks || []}
                 onAddTask={handleAddTask}
