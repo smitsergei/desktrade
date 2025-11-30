@@ -18,7 +18,10 @@ import {
   Edit2,
   Check,
   X,
-  Wallet
+  Wallet,
+  Activity,
+  Target,
+  AlertCircle
 } from 'lucide-react'
 import {
   format,
@@ -31,7 +34,411 @@ import {
 import { ru } from 'date-fns/locale'
 import { Ticker, WeekendTask } from '@/types'
 
-// Основной компонент приложения
+// Enhanced Loading Component
+function LoadingScreen() {
+  return (
+    <div className="fixed inset-0 flex items-center justify-center" style={{ background: 'var(--bg-primary)' }}>
+      <div className="text-center">
+        <div className="inline-flex items-center justify-center w-20 h-20 mb-4 loading-pulse rounded-full">
+          <Activity size={40} className="text-cyan-400" />
+        </div>
+        <h2 className="text-xl font-semibold text-gradient mb-2">Загрузка терминала</h2>
+        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+          Инициализация торговых данных...
+        </p>
+      </div>
+    </div>
+  )
+}
+
+// Enhanced Ticker Component
+function TickerItem({ item, onResolve, onDelete }: {
+  item: Ticker
+  onResolve: (id: string, status: string) => void
+  onDelete: (id: string) => void
+}) {
+  const [showActions, setShowActions] = useState(false)
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'won': return 'status-won'
+      case 'lost': return 'status-lost'
+      default: return 'status-pending'
+    }
+  }
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'won': return 'WIN'
+      case 'lost': return 'LOSS'
+      default: return 'PENDING'
+    }
+  }
+
+  return (
+    <div
+      className="group glass-card rounded-lg p-3 mb-2 animate-slide-in neon-border"
+      onMouseEnter={() => setShowActions(true)}
+      onMouseLeave={() => setShowActions(false)}
+    >
+      <div className="flex items-start justify-between mb-2">
+        <div>
+          <span className="font-mono font-semibold text-cyan-400">{item.ticker}</span>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+              Цена: {item.predictionPrice.toFixed(2)}
+            </span>
+            {item.positionSize && (
+              <span className="text-xs text-mono" style={{ color: 'var(--accent-purple)' }}>
+                {item.positionSize.toFixed(0)} шт
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className={`text-xs font-mono font-bold ${getStatusColor(item.status)}`}>
+            {getStatusText(item.status)}
+          </span>
+          {item.profitLoss !== null && item.profitLoss !== undefined && (
+            <span className={`text-xs font-mono ${item.profitLoss >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+              {item.profitLoss >= 0 ? '+' : ''}{item.profitLoss.toFixed(2)}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {item.confidenceLevel && (
+        <div className="mb-2">
+          <div className="flex justify-between text-xs mb-1">
+            <span style={{ color: 'var(--text-secondary)' }}>Уверенность</span>
+            <span className="text-mono">{item.confidenceLevel}/5</span>
+          </div>
+          <div className="h-1 bg-gray-700 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-cyan-400 to-purple-500 transition-all duration-500"
+              style={{ width: `${(item.confidenceLevel / 5) * 100}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {showActions && item.status === 'pending' && (
+        <div className="flex gap-1 animate-slide-in">
+          <button
+            onClick={() => onResolve(item.id, 'won')}
+            className="flex-1 py-1 px-2 text-xs font-medium rounded bg-green-500/20 text-green-400 hover:bg-green-500/30 transition-all"
+          >
+            <Check size={12} className="inline mr-1" />
+            Won
+          </button>
+          <button
+            onClick={() => onResolve(item.id, 'lost')}
+            className="flex-1 py-1 px-2 text-xs font-medium rounded bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all"
+          >
+            <X size={12} className="inline mr-1" />
+            Lost
+          </button>
+          <button
+            onClick={() => onDelete(item.id)}
+            className="p-1 text-xs rounded bg-gray-500/20 text-gray-400 hover:bg-gray-500/30 transition-all"
+          >
+            <Trash2 size={12} />
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Enhanced Input Component
+function TickerInput({ dayKey, type }: { dayKey: string, type: string }) {
+  const [ticker, setTicker] = useState('')
+  const [rating, setRating] = useState(3)
+  const [predictionPrice, setPredictionPrice] = useState('')
+  const [notes, setNotes] = useState('')
+  const [showForm, setShowForm] = useState(false)
+  const [userSettings, setUserSettings] = useState<any>(null)
+
+  useEffect(() => {
+    fetch('/api/settings')
+      .then(res => res.json())
+      .then(setUserSettings)
+      .catch(console.error)
+  }, [])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!ticker || !predictionPrice) return
+
+    // Calculate position size
+    const riskAmount = userSettings ?
+      Number(userSettings.deposit) * (Number(userSettings.riskPercentage) / 100) : 0
+    const positionSize = riskAmount / parseFloat(predictionPrice)
+
+    try {
+      const response = await fetch('/api/tickers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dayKey,
+          type,
+          ticker: ticker.toUpperCase(),
+          rating,
+          predictionPrice: parseFloat(predictionPrice),
+          notes,
+          positionSize,
+          confidenceLevel: rating
+        })
+      })
+
+      if (response.ok) {
+        setTicker('')
+        setRating(3)
+        setPredictionPrice('')
+        setNotes('')
+        setShowForm(false)
+        window.location.reload()
+      }
+    } catch (error) {
+      console.error('Error adding ticker:', error)
+    }
+  }
+
+  if (!showForm) {
+    return (
+      <button
+        onClick={() => setShowForm(true)}
+        className="w-full p-3 border-2 border-dashed rounded-lg transition-all duration-300 hover:border-cyan-400/50 hover:bg-cyan-400/5 group"
+        style={{ borderColor: 'var(--border-secondary)' }}
+      >
+        <Plus size={16} className="mx-auto mb-1 text-gray-500 group-hover:text-cyan-400 transition-colors" />
+        <span className="text-xs text-gray-500 group-hover:text-cyan-400 transition-colors">
+          Добавить тикер
+        </span>
+      </button>
+    )
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="glass-card rounded-lg p-3 space-y-3">
+      <div>
+        <input
+          type="text"
+          placeholder="Тикер (AAPL)"
+          value={ticker}
+          onChange={(e) => setTicker(e.target.value.toUpperCase())}
+          className="input-trading w-full px-3 py-2 rounded-lg text-sm"
+          maxLength={10}
+        />
+      </div>
+
+      <div>
+        <label className="text-xs font-medium mb-1 block" style={{ color: 'var(--text-secondary)' }}>
+          Цена предикшена (0-1)
+        </label>
+        <input
+          type="number"
+          step="0.01"
+          min="0.01"
+          max="0.99"
+          placeholder="0.65"
+          value={predictionPrice}
+          onChange={(e) => setPredictionPrice(e.target.value)}
+          className="input-trading w-full px-3 py-2 rounded-lg text-sm font-mono"
+          required
+        />
+      </div>
+
+      <div>
+        <label className="text-xs font-medium mb-1 block" style={{ color: 'var(--text-secondary)' }}>
+          Уверенность
+        </label>
+        <div className="flex gap-1">
+          {[1, 2, 3, 4, 5].map((value) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setRating(value)}
+              className="flex-1 p-2 rounded transition-all"
+              style={{
+                background: rating >= value ? 'linear-gradient(135deg, var(--accent-cyan), var(--accent-purple))' : 'var(--bg-secondary)',
+                color: rating >= value ? 'var(--bg-primary)' : 'var(--text-secondary)'
+              }}
+            >
+              <Star size={12} className={rating >= value ? 'fill-current' : ''} />
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex gap-1">
+        <button
+          type="submit"
+          className="flex-1 btn-primary py-2 px-3 rounded-lg text-sm font-medium"
+        >
+          Добавить
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowForm(false)}
+          className="px-3 py-2 rounded-lg text-sm btn-secondary"
+        >
+          <X size={16} />
+        </button>
+      </div>
+    </form>
+  )
+}
+
+// Enhanced Ticker List
+function TickerList({ items, dayKey, type }: {
+  items: Ticker[]
+  dayKey: string
+  type: string
+}) {
+  const handleResolve = async (tickerId: string, status: string) => {
+    try {
+      const response = await fetch(`/api/tickers/${tickerId}/resolve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      })
+
+      if (response.ok) {
+        window.location.reload()
+      }
+    } catch (error) {
+      console.error('Error resolving ticker:', error)
+    }
+  }
+
+  const handleDelete = async (tickerId: string) => {
+    try {
+      const response = await fetch(`/api/tickers/${tickerId}`, {
+        method: 'DELETE'
+      })
+
+      if (response.ok) {
+        window.location.reload()
+      }
+    } catch (error) {
+      console.error('Error deleting ticker:', error)
+    }
+  }
+
+  if (!items || items.length === 0) {
+    return (
+      <div className="text-center py-4">
+        <AlertCircle size={16} className="mx-auto mb-1" style={{ color: 'var(--text-muted)' }} />
+        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+          Нет активных сделок
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-2 custom-scrollbar" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+      {items.map((item) => (
+        <TickerItem
+          key={item.id}
+          item={item}
+          onResolve={handleResolve}
+          onDelete={handleDelete}
+        />
+      ))}
+    </div>
+  )
+}
+
+// Enhanced Weekend Notes
+function WeekendNotes({ tasks, onAddTask, onToggleTask }: {
+  tasks: WeekendTask[]
+  onAddTask: (text: string) => void
+  onToggleTask: (id: string) => void
+}) {
+  const [newTask, setNewTask] = useState('')
+  const [showInput, setShowInput] = useState(false)
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (newTask.trim()) {
+      onAddTask(newTask.trim())
+      setNewTask('')
+      setShowInput(false)
+    }
+  }
+
+  return (
+    <div className="glass-card rounded-xl p-4" style={{ background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(139, 92, 246, 0.02) 100%)' }}>
+      <div className="flex items-center gap-2 mb-4">
+        <Target size={20} className="text-purple-400" />
+        <h3 className="font-bold text-gradient">План на выходные</h3>
+      </div>
+
+      <div className="space-y-2 mb-4">
+        {tasks.map((task) => (
+          <div
+            key={task.id}
+            className="flex items-start gap-3 p-2 rounded-lg hover:bg-purple-500/5 transition-colors cursor-pointer group"
+            onClick={() => onToggleTask(task.id)}
+          >
+            <div className="mt-0.5">
+              <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all ${
+                task.done
+                  ? 'bg-purple-500 border-purple-500'
+                  : 'border-gray-600 group-hover:border-purple-400'
+              }`}>
+                {task.done && <Check size={10} className="text-white" />}
+              </div>
+            </div>
+            <span className={`text-sm ${task.done ? 'line-through' : ''}`} style={{
+              color: task.done ? 'var(--text-muted)' : 'var(--text-secondary)'
+            }}>
+              {task.text}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {!showInput ? (
+        <button
+          onClick={() => setShowInput(true)}
+          className="w-full py-2 px-3 rounded-lg text-sm btn-secondary"
+        >
+          <Plus size={16} className="inline mr-1" />
+          Добавить задачу
+        </button>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-2">
+          <input
+            type="text"
+            value={newTask}
+            onChange={(e) => setNewTask(e.target.value)}
+            placeholder="Новая задача..."
+            className="input-trading w-full px-3 py-2 rounded-lg text-sm"
+            autoFocus
+          />
+          <div className="flex gap-2">
+            <button type="submit" className="btn-primary py-1 px-3 rounded text-sm">
+              Добавить
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowInput(false)}
+              className="btn-secondary py-1 px-3 rounded text-sm"
+            >
+              Отмена
+            </button>
+          </div>
+        </form>
+      )}
+    </div>
+  )
+}
+
+// Main Component
 export default function TraderPlanner() {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -40,7 +447,7 @@ export default function TraderPlanner() {
   const [loading, setLoading] = useState(true)
   const [userSettings, setUserSettings] = useState<any>(null)
 
-  // Проверка аутентификации
+  // Authentication check
   useEffect(() => {
     if (status === 'loading') return
     if (!session) {
@@ -48,406 +455,66 @@ export default function TraderPlanner() {
       return
     }
 
-    // Загрузка данных
-    fetchWeekData()
-    fetchUserSettings()
-  }, [session, status, router, currentDate])
+    // Load data
+    const loadData = async () => {
+      try {
+        const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 })
+        const weekEnd = addDays(weekStart, 6)
 
-  // Загрузка данных недели
-  const fetchWeekData = async () => {
-    try {
-      const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 })
-      const weekEnd = addDays(weekStart, 4)
-
-      const response = await fetch(`/api/week?start=${weekStart.toISOString()}&end=${weekEnd.toISOString()}`, {
-        headers: {
-          'Authorization': `Bearer ${session?.user?.email}`
-        }
-      })
-
-      if (response.ok) {
+        const response = await fetch(
+          `/api/week?start=${weekStart.toISOString()}&end=${weekEnd.toISOString()}`
+        )
         const data = await response.json()
         setPlannerData(data)
-      }
-    } catch (error) {
-      console.error('Error fetching week data:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
 
-  // Загрузка настроек пользователя
-  const fetchUserSettings = async () => {
+        // Load settings
+        const settingsResponse = await fetch('/api/settings')
+        const settings = await settingsResponse.json()
+        setUserSettings(settings)
+      } catch (error) {
+        console.error('Error loading data:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadData()
+  }, [session, currentDate])
+
+  const handleAddTask = async (text: string) => {
     try {
-      const response = await fetch('/api/settings', {
-        headers: {
-          'Authorization': `Bearer ${session?.user?.email}`
-        }
+      const response = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text,
+          weekStartDate: startOfWeek(currentDate, { weekStartsOn: 1 })
+        })
       })
 
       if (response.ok) {
-        const data = await response.json()
-        setUserSettings(data)
+        window.location.reload()
       }
     } catch (error) {
-      console.error('Error fetching settings:', error)
+      console.error('Error adding task:', error)
     }
   }
 
-  // Сохранение данных
-  const saveData = async (endpoint: string, data: any) => {
+  const handleToggleTask = async (taskId: string) => {
     try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.user?.email}`
-        },
-        body: JSON.stringify(data)
+      const response = await fetch(`/api/tasks/${taskId}`, {
+        method: 'PATCH'
       })
 
-      if (!response.ok) {
-        throw new Error('Failed to save data')
+      if (response.ok) {
+        window.location.reload()
       }
-
-      return await response.json()
     } catch (error) {
-      console.error('Error saving data:', error)
-      throw error
+      console.error('Error toggling task:', error)
     }
   }
 
-  // Компонент для добавления тикера
-  const TickerInput = ({ dayKey, type, existingItems }: {
-    dayKey: string,
-    type: 'pre_market' | 'after_market',
-    existingItems: Ticker[]
-  }) => {
-    const [ticker, setTicker] = useState('')
-    const [rating, setRating] = useState('')
-    const [predictionPrice, setPredictionPrice] = useState('')
-    const [confidenceLevel, setConfidenceLevel] = useState('50')
-
-    const handleAdd = async () => {
-      if (!ticker) return
-
-      // Расчет размера позиции
-      const riskAmount = userSettings?.deposit * (userSettings?.riskPercentage / 100)
-      const positionSize = riskAmount / parseFloat(predictionPrice || '0.1')
-
-      const newItem = {
-        ticker: ticker.toUpperCase(),
-        rating: parseInt(rating) || 1,
-        predictionPrice: parseFloat(predictionPrice) || 0.5,
-        type,
-        positionSize,
-        confidenceLevel: parseInt(confidenceLevel) || 50
-      }
-
-      try {
-        await saveData('/api/tickers', {
-          ...newItem,
-          weeklyEntryId: dayKey
-        })
-
-        // Обновляем локальное состояние
-        fetchWeekData()
-        setTicker('')
-        setRating('')
-        setPredictionPrice('')
-        setConfidenceLevel('50')
-      } catch (error) {
-        console.error('Error adding ticker:', error)
-      }
-    }
-
-    return (
-      <div className="flex flex-col gap-2 p-2 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 mt-2">
-        <div className="grid grid-cols-2 gap-2">
-          <input
-            value={ticker}
-            onChange={(e) => setTicker(e.target.value)}
-            placeholder="Тикер"
-            className="p-1 text-xs rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 uppercase font-bold text-slate-800 dark:text-white"
-          />
-          <input
-            value={rating}
-            type="number"
-            min="1"
-            max="3"
-            onChange={(e) => setRating(e.target.value)}
-            placeholder="Рейт (1-3)"
-            className="p-1 text-xs rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white"
-          />
-          <input
-            value={predictionPrice}
-            type="number"
-            min="0"
-            max="1"
-            step="0.01"
-            onChange={(e) => setPredictionPrice(e.target.value)}
-            placeholder="Цена (0-1)"
-            className="p-1 text-xs rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white"
-          />
-          <input
-            value={confidenceLevel}
-            type="number"
-            min="1"
-            max="100"
-            onChange={(e) => setConfidenceLevel(e.target.value)}
-            placeholder="Уверенность (%)"
-            className="p-1 text-xs rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white"
-          />
-        </div>
-        <button
-          onClick={handleAdd}
-          className="bg-blue-600 hover:bg-blue-700 text-white text-xs py-1 px-2 rounded flex items-center justify-center gap-1 transition-colors w-full"
-        >
-          <Plus size={14} /> Добавить
-        </button>
-      </div>
-    )
-  }
-
-  // Компонент для отображения тикера
-  const TickerItem = ({ item }: { item: Ticker & { id?: string } }) => {
-    const [isEditing, setIsEditing] = useState(false)
-    const [showResolve, setShowResolve] = useState(false)
-
-    const getRatingColor = (r: number) => {
-      if (r === 3) return "border-l-4 border-green-500 bg-green-50/50 dark:bg-green-900/20"
-      if (r === 2) return "border-l-4 border-yellow-400 bg-yellow-50/50 dark:bg-yellow-900/20"
-      return "border-l-4 border-slate-300 bg-white dark:bg-slate-700"
-    }
-
-    const getStatusColor = (status: string) => {
-      switch (status) {
-        case 'won': return 'text-green-600 dark:text-green-400'
-        case 'lost': return 'text-red-600 dark:text-red-400'
-        case 'pending': return 'text-yellow-600 dark:text-yellow-400'
-        default: return 'text-slate-500'
-      }
-    }
-
-    const handleResolve = async (result: 'won' | 'lost') => {
-      try {
-        await fetch(`/api/tickers/${item.id}/resolve`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session?.user?.email}`
-          },
-          body: JSON.stringify({ status: result })
-        })
-
-        fetchWeekData()
-        setShowResolve(false)
-      } catch (error) {
-        console.error('Error resolving ticker:', error)
-      }
-    }
-
-    const handleDelete = async () => {
-      try {
-        await fetch(`/api/tickers/${item.id}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${session?.user?.email}`
-          }
-        })
-
-        fetchWeekData()
-      } catch (error) {
-        console.error('Error deleting ticker:', error)
-      }
-    }
-
-    return (
-      <div className={`p-2 rounded shadow-sm mt-2 transition-colors ${getRatingColor(item.rating)}`}>
-        <div className="flex justify-between items-start">
-          <div>
-            <div className="font-bold text-slate-800 dark:text-slate-100 text-sm">{item.ticker}</div>
-            <div className="flex gap-3 text-xs text-slate-500 dark:text-slate-300 mt-1">
-              <span className="flex items-center gap-1 font-medium">
-                <Star size={10} className={item.rating >= 2 ? "fill-current" : ""} /> {item.rating}/3
-              </span>
-              <span className="flex items-center gap-1">
-                <DollarSign size={10} /> {item.predictionPrice}
-              </span>
-              <span className={`flex items-center gap-1 ${getStatusColor(item.status)}`}>
-                Статус: {item.status === 'won' ? 'Выигрыш' : item.status === 'lost' ? 'Проигрыш' : 'В ожидании'}
-              </span>
-            </div>
-            {item.positionSize && (
-              <div className="text-xs text-slate-600 dark:text-slate-400 mt-1">
-                Размер позиции: ${item.positionSize.toFixed(2)}
-              </div>
-            )}
-            {item.profitLoss !== undefined && (
-              <div className={`text-xs font-medium mt-1 ${item.profitLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                P&L: ${item.profitLoss.toFixed(2)}
-              </div>
-            )}
-          </div>
-          <div className="flex gap-1">
-            {item.status === 'pending' && (
-              <button
-                onClick={() => setShowResolve(!showResolve)}
-                className="text-slate-400 hover:text-blue-500 p-0.5"
-                title="Закрыть сделку"
-              >
-                <Check size={12} />
-              </button>
-            )}
-            <button
-              onClick={handleDelete}
-              className="text-slate-400 hover:text-red-500 p-0.5"
-              title="Удалить"
-            >
-              <Trash2 size={12} />
-            </button>
-          </div>
-        </div>
-
-        {showResolve && (
-          <div className="flex gap-2 mt-2">
-            <button
-              onClick={() => handleResolve('won')}
-              className="flex-1 bg-green-600 hover:bg-green-700 text-white text-xs py-1 px-2 rounded"
-            >
-              Выигрыш
-            </button>
-            <button
-              onClick={() => handleResolve('lost')}
-              className="flex-1 bg-red-600 hover:bg-red-700 text-white text-xs py-1 px-2 rounded"
-            >
-              Проигрыш
-            </button>
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  // Компонент списка тикеров
-  const TickerList = ({ items, dayKey, type }: {
-    items: Ticker[],
-    dayKey: string,
-    type: 'pre_market' | 'after_market'
-  }) => {
-    if (!items || items.length === 0) {
-      return <div className="text-xs text-slate-400 italic p-2">Нет записей</div>
-    }
-
-    return (
-      <div className="space-y-2">
-        {items.map((item) => (
-          <TickerItem key={item.id} item={item} />
-        ))}
-      </div>
-    )
-  }
-
-  // Компонент задач на выходные
-  const WeekendNotes = ({ weekId }: { weekId: string }) => {
-    const [newTask, setNewTask] = useState('')
-    const tasks = plannerData.weekendTasks || []
-
-    const addTask = async () => {
-      if (!newTask.trim()) return
-
-      try {
-        await saveData('/api/tasks', {
-          text: newTask,
-          weekStartDate: weekId
-        })
-
-        fetchWeekData()
-        setNewTask('')
-      } catch (error) {
-        console.error('Error adding task:', error)
-      }
-    }
-
-    const toggleTask = async (taskId: string, done: boolean) => {
-      try {
-        await fetch(`/api/tasks/${taskId}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session?.user?.email}`
-          },
-          body: JSON.stringify({ done })
-        })
-
-        fetchWeekData()
-      } catch (error) {
-        console.error('Error updating task:', error)
-      }
-    }
-
-    const deleteTask = async (taskId: string) => {
-      try {
-        await fetch(`/api/tasks/${taskId}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${session?.user?.email}`
-          }
-        })
-
-        fetchWeekData()
-      } catch (error) {
-        console.error('Error deleting task:', error)
-      }
-    }
-
-    return (
-      <div className="bg-slate-100 dark:bg-slate-800 rounded-xl p-4 h-full border-t-4 border-indigo-500 shadow-sm">
-        <h3 className="font-bold text-lg text-slate-800 dark:text-white mb-1 flex items-center gap-2">
-          <CheckSquare className="text-indigo-500" />
-          Выходные & Идеи
-        </h3>
-        <p className="text-xs text-slate-500 mb-4">Задачи, анализ, подготовка к следующей неделе</p>
-
-        <div className="flex gap-2 mb-4">
-          <input
-            value={newTask}
-            onChange={(e) => setNewTask(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && addTask()}
-            placeholder="Новая задача..."
-            className="flex-1 p-2 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm"
-          />
-          <button onClick={addTask} className="bg-indigo-600 text-white p-2 rounded hover:bg-indigo-700">
-            <Plus size={18} />
-          </button>
-        </div>
-
-        <div className="space-y-2 overflow-y-auto max-h-[500px] pr-2 custom-scrollbar">
-          {tasks.map((task: WeekendTask) => (
-            <div key={task.id} className={`flex items-start gap-2 p-2 rounded ${task.done ? 'bg-indigo-100 dark:bg-indigo-900/30' : 'bg-white dark:bg-slate-700'}`}>
-              <input
-                type="checkbox"
-                checked={task.done}
-                onChange={(e) => toggleTask(task.id, e.target.checked)}
-                className="mt-1 accent-indigo-600 cursor-pointer"
-              />
-              <span className={`flex-1 text-sm break-words ${task.done ? 'line-through text-slate-500' : 'text-slate-800 dark:text-slate-200'}`}>
-                {task.text}
-              </span>
-              <button onClick={() => deleteTask(task.id)} className="text-slate-400 hover:text-red-500">
-                <Trash2 size={14} />
-              </button>
-            </div>
-          ))}
-          {tasks.length === 0 && (
-            <p className="text-center text-slate-400 text-sm mt-4">Список пуст</p>
-          )}
-        </div>
-      </div>
-    )
-  }
-
-  // Логика дат
+  // Date logic
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 })
   const weekId = format(weekStart, 'yyyy-MM-dd')
   const weekDays = Array.from({ length: 5 }).map((_, i) => addDays(weekStart, i))
@@ -457,134 +524,165 @@ export default function TraderPlanner() {
   }
 
   if (status === 'loading' || loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-500">
-        <div className="animate-pulse">Загрузка еженедельника...</div>
-      </div>
-    )
+    return <LoadingScreen />
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-sans">
+    <div className="relative" style={{ minHeight: '100vh', background: 'var(--bg-primary)' }}>
       {/* Header */}
-      <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="bg-blue-600 p-2 rounded-lg text-white">
-              <TrendingUp size={24} />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold tracking-tight">Трейдерский Журнал</h1>
-              {userSettings && (
-                <div className="text-sm text-slate-500 flex items-center gap-1">
-                  <Wallet size={14} />
-                  Баланс: ${userSettings.deposit.toFixed(2)}
+      <header className="glass-card sticky top-0 z-50 border-b" style={{ borderBottomColor: 'var(--border-accent)' }}>
+        <div className="max-w-7xl mx-auto px-4 py-4">
+          <div className="flex flex-col lg:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <div className="absolute inset-0 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-lg blur opacity-50"></div>
+                <div className="relative p-3 rounded-lg" style={{ background: 'var(--bg-card)' }}>
+                  <TrendingUp size={28} className="text-gradient" />
                 </div>
-              )}
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight">DeskTrade Terminal</h1>
+                {userSettings && (
+                  <div className="flex items-center gap-2 mt-1">
+                    <Wallet size={16} style={{ color: 'var(--text-secondary)' }} />
+                    <span className="font-mono text-sm" style={{ color: 'var(--text-secondary)' }}>
+                      Баланс: <span className="text-cyan-400">${userSettings.deposit.toFixed(2)}</span>
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 glass-card px-4 py-2 rounded-lg">
+                <button
+                  onClick={() => changeWeek('prev')}
+                  className="p-2 rounded-lg hover:bg-white/5 transition-colors"
+                >
+                  <ChevronLeft size={20} style={{ color: 'var(--accent-cyan)' }} />
+                </button>
+                <span className="font-medium min-w-[160px] text-center flex items-center justify-center gap-2">
+                  <Calendar size={18} style={{ color: 'var(--text-secondary)' }} />
+                  <span className="font-mono text-sm">
+                    {format(weekStart, 'dd MMM', { locale: ru })} - {format(addDays(weekStart, 4), 'dd MMM', { locale: ru })}
+                  </span>
+                </span>
+                <button
+                  onClick={() => changeWeek('next')}
+                  className="p-2 rounded-lg hover:bg-white/5 transition-colors"
+                >
+                  <ChevronRight size={20} style={{ color: 'var(--accent-cyan)' }} />
+                </button>
+              </div>
+
+              <button
+                onClick={() => router.push('/dashboard/settings')}
+                className="text-sm px-4 py-2 rounded-lg btn-secondary"
+              >
+                Настройки
+              </button>
             </div>
           </div>
-
-          <div className="flex items-center gap-4 bg-slate-100 dark:bg-slate-700 p-1 rounded-lg">
-            <button onClick={() => changeWeek('prev')} className="p-2 hover:bg-white dark:hover:bg-slate-600 rounded-md transition-colors">
-              <ChevronLeft size={20} />
-            </button>
-            <span className="font-medium min-w-[140px] text-center flex items-center justify-center gap-2">
-              <Calendar size={16} className="text-slate-500" />
-              {format(weekStart, 'd MMM', { locale: ru })} - {format(addDays(weekStart, 4), 'd MMM', { locale: ru })}
-            </span>
-            <button onClick={() => changeWeek('next')} className="p-2 hover:bg-white dark:hover:bg-slate-600 rounded-md transition-colors">
-              <ChevronRight size={20} />
-            </button>
-          </div>
-
-          <button
-            onClick={() => router.push('/dashboard/settings')}
-            className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
-          >
-            Настройки
-          </button>
         </div>
       </header>
 
       {/* Main Grid */}
-      <main className="max-w-7xl mx-auto p-4">
-        <div className="flex flex-col lg:flex-row gap-6">
+      <main className="relative" style={{ zIndex: 10 }}>
+        <div className="max-w-7xl mx-auto p-4">
+          <div className="flex flex-col xl:flex-row gap-6">
 
-          {/* Weekdays Container */}
-          <div className="flex-1 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
-            {weekDays.map((day) => {
-              const dayKey = format(day, 'yyyy-MM-dd')
-              const isToday = isSameDay(day, new Date())
-              const dayData = plannerData[dayKey] || { preMarket: [], afterMarket: [] }
+            {/* Weekdays Grid */}
+            <div className="flex-1">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+                {weekDays.map((day, index) => {
+                  const dayKey = format(day, 'yyyy-MM-dd')
+                  const isToday = isSameDay(day, new Date())
+                  const dayData = plannerData[dayKey] || { preMarket: [], afterMarket: [] }
 
-              return (
-                <div
-                  key={dayKey}
-                  className={`flex flex-col bg-white dark:bg-slate-800 rounded-xl shadow-sm border ${isToday ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-slate-200 dark:border-slate-700'}`}
-                >
-                  {/* Day Header */}
-                  <div className={`p-3 border-b border-slate-100 dark:border-slate-700 rounded-t-xl ${isToday ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}>
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold capitalize text-slate-700 dark:text-slate-200">
-                        {format(day, 'EEEE', { locale: ru })}
-                      </span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${isToday ? 'bg-blue-200 text-blue-800' : 'bg-slate-100 dark:bg-slate-700 text-slate-500'}`}>
-                        {format(day, 'd MMM', { locale: ru })}
-                      </span>
+                  return (
+                    <div
+                      key={dayKey}
+                      className={`trading-card rounded-xl overflow-hidden animate-slide-in neon-border ${
+                        isToday ? 'active' : ''
+                      }`}
+                      style={{ animationDelay: `${index * 0.1}s` }}
+                    >
+                      {/* Day Header */}
+                      <div
+                        className={`p-4 border-b relative overflow-hidden ${
+                          isToday ? 'border-cyan-400/50' : ''
+                        }`}
+                        style={{
+                          background: isToday
+                            ? 'linear-gradient(135deg, rgba(0, 217, 255, 0.1) 0%, rgba(139, 92, 246, 0.05) 100%)'
+                            : 'var(--bg-secondary)'
+                        }}
+                      >
+                        {isToday && (
+                          <div className="absolute top-0 right-0 px-2 py-1 text-xs font-bold text-gradient">
+                            TODAY
+                          </div>
+                        )}
+                        <div className="text-center">
+                          <div className="font-bold text-lg capitalize" style={{ color: 'var(--text-primary)' }}>
+                            {format(day, 'EEEEEE', { locale: ru }).toUpperCase()}
+                          </div>
+                          <div className="text-xs font-mono mt-1" style={{ color: 'var(--text-secondary)' }}>
+                            {format(day, 'd MMM', { locale: ru })}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Pre-Market Section */}
+                      <div className="p-3 border-b pre-market">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Sun size={14} style={{ color: 'var(--warning-yellow)' }} />
+                          <h4 className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--warning-yellow)' }}>
+                            До открытия
+                          </h4>
+                        </div>
+                        <TickerList
+                          items={dayData.preMarket}
+                          dayKey={dayKey}
+                          type="pre_market"
+                        />
+                        <TickerInput
+                          dayKey={dayKey}
+                          type="pre_market"
+                        />
+                      </div>
+
+                      {/* After-Market Section */}
+                      <div className="p-3 after-market">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Moon size={14} style={{ color: 'var(--neutral-blue)' }} />
+                          <h4 className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--neutral-blue)' }}>
+                            После закрытия
+                          </h4>
+                        </div>
+                        <TickerList
+                          items={dayData.afterMarket}
+                          dayKey={dayKey}
+                          type="after_market"
+                        />
+                        <TickerInput
+                          dayKey={dayKey}
+                          type="after_market"
+                        />
+                      </div>
                     </div>
-                  </div>
-
-                  {/* Pre-Market Section */}
-                  <div className="flex-1 p-3 border-b border-slate-100 dark:border-slate-700 bg-orange-50/30 dark:bg-orange-900/10">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Sun size={14} className="text-orange-500" />
-                      <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">До открытия</h4>
-                    </div>
-                    <TickerList
-                      items={dayData.preMarket}
-                      dayKey={dayKey}
-                      type="pre_market"
-                    />
-                    <TickerInput
-                      dayKey={dayKey}
-                      type="pre_market"
-                      existingItems={dayData.preMarket}
-                    />
-                  </div>
-
-                  {/* After-Market Section */}
-                  <div className="flex-1 p-3 bg-blue-50/30 dark:bg-blue-900/10 rounded-b-xl">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Moon size={14} className="text-blue-500" />
-                      <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">На закрытии</h4>
-                    </div>
-                    <TickerList
-                      items={dayData.afterMarket}
-                      dayKey={dayKey}
-                      type="after_market"
-                    />
-                    <TickerInput
-                      dayKey={dayKey}
-                      type="after_market"
-                      existingItems={dayData.afterMarket}
-                    />
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-
-          {/* Weekend / Notes Sidebar */}
-          <div className="lg:w-80 w-full flex-shrink-0">
-            <div className="sticky top-24">
-              <WeekendNotes weekId={weekId} />
-
-              <div className="mt-6 p-4 bg-slate-200 dark:bg-slate-800 rounded-xl text-xs text-slate-500 leading-relaxed">
-                <h4 className="font-bold text-slate-700 dark:text-slate-300 mb-2">Совет недели</h4>
-                <p>
-                  "Планируй сделку и торгуй по плану." Заполняйте раздел "До открытия" до начала торгов, чтобы избежать эмоциональных решений во время волатильности.
-                </p>
+                  )
+                })}
               </div>
+            </div>
+
+            {/* Sidebar */}
+            <div className="xl:w-80">
+              <WeekendNotes
+                tasks={plannerData.weekendTasks || []}
+                onAddTask={handleAddTask}
+                onToggleTask={handleToggleTask}
+              />
             </div>
           </div>
         </div>

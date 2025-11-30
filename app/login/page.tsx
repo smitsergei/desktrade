@@ -3,12 +3,13 @@
 import { useState } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
+import { TrendingUp, Activity, Eye, EyeOff } from 'lucide-react'
 
 export default function LoginPage() {
   const [isLogin, setIsLogin] = useState(true)
-  const [username, setUsername] = useState('')
+  const [username, setUsername] = useState('smit')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const router = useRouter()
@@ -66,72 +67,124 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Еженедельник трейдера
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            {isLogin ? 'Войдите в свой аккаунт' : 'Создайте новый аккаунт'}
-          </p>
-        </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-              {error}
+    <div className="relative min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-primary)' }}>
+      {/* Background Pattern */}
+      <div className="absolute inset-0" />
+
+      {/* Animated Background Elements */}
+      <div className="absolute top-20 left-20 w-72 h-72 bg-cyan-500 rounded-full opacity-10 blur-3xl animate-pulse" />
+      <div className="absolute bottom-20 right-20 w-96 h-96 bg-purple-500 rounded-full opacity-10 blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+
+      {/* Main Content */}
+      <div className="relative z-10 w-full max-w-md px-4">
+        <div className="glass-card rounded-2xl p-8">
+          {/* Logo */}
+          <div className="text-center mb-8">
+            <div className="relative inline-block mb-4">
+              <div className="absolute inset-0 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-xl blur opacity-50"></div>
+              <div className="relative p-4 rounded-xl" style={{ background: 'var(--bg-card)' }}>
+                <TrendingUp size={48} className="text-gradient" />
+              </div>
             </div>
-          )}
-          <div className="rounded-md shadow-sm -space-y-px">
-            <div>
-              <input
-                id="username"
-                name="username"
-                type="text"
-                required
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Логин"
-              />
-            </div>
-            <div>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Пароль"
-              />
-            </div>
+            <h1 className="text-3xl font-bold mb-2 text-gradient">DeskTrade</h1>
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+              Терминал для торговли предикшен маркетами
+            </p>
           </div>
 
-          <div>
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {error && (
+              <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30">
+                <p className="text-sm text-red-400">{error}</p>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>
+                Логин
+              </label>
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="input-trading w-full px-4 py-3 rounded-lg"
+                placeholder="Введите логин"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>
+                Пароль
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="input-trading w-full px-4 py-3 rounded-lg pr-12"
+                  placeholder={isLogin ? "Введите пароль" : "Придумайте пароль"}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-white/10 transition-colors"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
+            </div>
+
             <button
               type="submit"
               disabled={loading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+              className="w-full btn-primary py-3 px-4 rounded-lg font-medium flex items-center justify-center gap-2"
             >
-              {loading ? 'Загрузка...' : (isLogin ? 'Войти' : 'Зарегистрироваться')}
+              {loading ? (
+                <>
+                  <Activity size={20} className="animate-spin" />
+                  Загрузка...
+                </>
+              ) : (
+                isLogin ? 'Войти в терминал' : 'Создать аккаунт'
+              )}
             </button>
-          </div>
+          </form>
 
-          <div className="text-center">
+          {/* Toggle */}
+          <div className="mt-6 text-center">
             <button
               type="button"
               onClick={() => {
                 setIsLogin(!isLogin)
                 setError('')
               }}
-              className="text-indigo-600 hover:text-indigo-500"
+              className="text-sm hover:text-cyan-400 transition-colors"
+              style={{ color: 'var(--text-secondary)' }}
             >
-              {isLogin ? 'Нет аккаунта? Зарегистрируйтесь' : 'Уже есть аккаунт? Войдите'}
+              {isLogin ? 'Нет аккаунта? Создать' : 'Уже есть аккаунт? Войти'}
             </button>
           </div>
-        </form>
+
+          {/* Demo Credentials */}
+          {isLogin && (
+            <div className="mt-6 p-4 rounded-lg" style={{ background: 'rgba(0, 217, 255, 0.05)' }}>
+              <p className="text-xs font-mono" style={{ color: 'var(--text-secondary)' }}>
+                Демо доступ:<br />
+                Логин: <span className="text-cyan-400">smit</span><br />
+                Пароль: <span className="text-cyan-400">smit123</span>
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <p className="text-center mt-8 text-xs" style={{ color: 'var(--text-muted)' }}>
+          © 2024 DeskTrade. Торговля с умом.
+        </p>
       </div>
     </div>
   )
