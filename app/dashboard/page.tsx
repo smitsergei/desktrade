@@ -380,24 +380,6 @@ function PriorityTasks({ tasks, onAddTask, onToggleTask, onEditTask, onDeleteTas
   const [showInput, setShowInput] = useState(false)
   const [editingTask, setEditingTask] = useState<WeekendTask | null>(null)
 
-  // Функция для переупорядочивания
-  const handleReorder = async (taskIds: string[]) => {
-    try {
-      const response = await fetch('/api/tasks/reorder', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ taskIds })
-      })
-      if (!response.ok) {
-        throw new Error('Failed to reorder tasks')
-      }
-      // Перезагружаем данные после успешного переупорядочивания
-      await loadData()
-    } catch (error) {
-      console.error('Error reordering tasks:', error)
-    }
-  }
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (newTask.trim()) {
@@ -634,6 +616,24 @@ export default function TraderPlanner() {
       }
     } catch (error) {
       console.error('Error adding task:', error)
+    }
+  }
+
+  // Функция для переупорядочивания
+  const handleReorder = async (taskIds: string[]) => {
+    try {
+      const response = await fetch('/api/tasks/reorder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taskIds })
+      })
+      if (!response.ok) {
+        throw new Error('Failed to reorder tasks')
+      }
+      // Перезагружаем данные после успешного переупорядочивания
+      await loadData()
+    } catch (error) {
+      console.error('Error reordering tasks:', error)
     }
   }
 
