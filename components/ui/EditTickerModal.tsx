@@ -186,12 +186,7 @@ export default function EditTickerModal({
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title={
-        <div className="flex items-center gap-2">
-          <Edit2 size={20} />
-          Редактирование сделки
-        </div>
-      }
+      title="Редактирование сделки"
     >
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-2 gap-4">
