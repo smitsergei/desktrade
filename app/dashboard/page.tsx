@@ -368,12 +368,13 @@ function TickerList({ items, dayKey, type, onSuccess, onEditTicker }: {
 }
 
 // Enhanced Priority Tasks
-function PriorityTasks({ tasks, onAddTask, onToggleTask, onEditTask, onDeleteTask }: {
+function PriorityTasks({ tasks, onAddTask, onToggleTask, onEditTask, onDeleteTask, onReorder }: {
   tasks: WeekendTask[]
   onAddTask: (text: string, priority: number) => void
   onToggleTask: (id: string) => void
   onEditTask: (id: string, text: string, priority: number) => void
   onDeleteTask: (id: string) => void
+  onReorder: (taskIds: string[]) => Promise<void>
 }) {
   const [newTask, setNewTask] = useState('')
   const [priority, setPriority] = useState(2)
@@ -896,6 +897,7 @@ export default function TraderPlanner() {
                 onToggleTask={handleToggleTask}
                 onEditTask={handleEditTask}
                 onDeleteTask={handleDeleteTask}
+                onReorder={handleReorder}
               />
             </div>
           </div>
