@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import {
@@ -676,6 +676,33 @@ export default function TraderPlanner() {
   const [loading, setLoading] = useState(true)
   const [userSettings, setUserSettings] = useState<any>(null)
 
+  // Load data function
+  const loadData = useCallback(async () => {
+    if (!session) return
+
+    try {
+      setLoading(true)
+      const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 })
+      const weekEnd = addDays(weekStart, 6)
+
+      const response = await fetch(
+        `/api/week?start=${weekStart.toISOString()}&end=${weekEnd.toISOString()}`
+      )
+      const data = await response.json()
+      console.log('Loaded data:', data)
+      setPlannerData(data)
+
+      // Load settings
+      const settingsResponse = await fetch('/api/settings')
+      const settings = await settingsResponse.json()
+      setUserSettings(settings)
+    } catch (error) {
+      console.error('Error loading data:', error)
+    } finally {
+      setLoading(false)
+    }
+  }, [session, currentDate])
+
   // Authentication check
   useEffect(() => {
     if (status === 'loading') return
@@ -684,32 +711,8 @@ export default function TraderPlanner() {
       return
     }
 
-    // Load data
-    const loadData = async () => {
-      try {
-        const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 })
-        const weekEnd = addDays(weekStart, 6)
-
-        const response = await fetch(
-          `/api/week?start=${weekStart.toISOString()}&end=${weekEnd.toISOString()}`
-        )
-        const data = await response.json()
-        console.log('Loaded data:', data)
-        setPlannerData(data)
-
-        // Load settings
-        const settingsResponse = await fetch('/api/settings')
-        const settings = await settingsResponse.json()
-        setUserSettings(settings)
-      } catch (error) {
-        console.error('Error loading data:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
     loadData()
-  }, [session, currentDate])
+  }, [status, loadData])
 
   const handleAddTask = async (text: string, priority: number = 2) => {
     try {
