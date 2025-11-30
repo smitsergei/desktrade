@@ -14,18 +14,22 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { ticker, rating, predictionPrice, type, positionSize, confidenceLevel, dayKey, notes } = body
 
+    console.log('Creating ticker for dayKey:', dayKey)
+    const entryDate = new Date(dayKey)
+    console.log('Entry date:', entryDate)
+
     // Получаем или создаем weekly entry
     const entry = await prisma.weeklyEntry.upsert({
       where: {
         userId_date: {
           userId: session.user.id,
-          date: new Date(dayKey)
+          date: entryDate
         }
       },
       update: {},
       create: {
         userId: session.user.id,
-        date: new Date(dayKey)
+        date: entryDate
       }
     })
 

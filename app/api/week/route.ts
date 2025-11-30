@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
     const result: any = {}
 
     // Получаем weekly entries
+    console.log('Searching entries between:', { startDate, endDate })
     const weeklyEntries = await prisma.weeklyEntry.findMany({
       where: {
         userId: session.user.id,
@@ -38,10 +39,19 @@ export async function GET(request: NextRequest) {
         tickers: true
       }
     })
+    console.log('Found weekly entries:', weeklyEntries.length)
 
     // Создаем карту для быстрого доступа
     const entriesMap = new Map(
-      weeklyEntries.map(entry => [format(entry.date, 'yyyy-MM-dd'), entry])
+      weeklyEntries.map(entry => {
+        const dayKey = format(entry.date, 'yyyy-MM-dd')
+        console.log(`Entry for ${dayKey}:`, {
+          id: entry.id,
+          date: entry.date,
+          tickersCount: entry.tickers.length
+        })
+        return [dayKey, entry]
+      })
     )
 
     // Обрабатываем каждый день

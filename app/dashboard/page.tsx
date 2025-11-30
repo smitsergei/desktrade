@@ -676,12 +676,12 @@ export default function TraderPlanner() {
   const [loading, setLoading] = useState(true)
   const [userSettings, setUserSettings] = useState<any>(null)
 
-  // Load data function
-  const loadData = useCallback(async () => {
+  // Load data function - с параметром для контроля загрузки
+  const loadData = useCallback(async (showLoading = false) => {
     if (!session) return
 
     try {
-      setLoading(true)
+      if (showLoading) setLoading(true)
       const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 })
       const weekEnd = addDays(weekStart, 6)
 
@@ -699,7 +699,7 @@ export default function TraderPlanner() {
     } catch (error) {
       console.error('Error loading data:', error)
     } finally {
-      setLoading(false)
+      if (showLoading) setLoading(false)
     }
   }, [session, currentDate])
 
@@ -711,7 +711,7 @@ export default function TraderPlanner() {
       return
     }
 
-    loadData()
+    loadData(true)
   }, [status, loadData])
 
   const handleAddTask = async (text: string, priority: number = 2) => {
