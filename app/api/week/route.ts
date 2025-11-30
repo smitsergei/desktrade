@@ -50,9 +50,18 @@ export async function GET(request: NextRequest) {
       const entry = entriesMap.get(dayKey)
 
       if (entry) {
+        // Конвертируем Decimal значения в тикерах
+        const convertTickers = (tickers: any[]) => tickers.map(ticker => ({
+          ...ticker,
+          predictionPrice: Number(ticker.predictionPrice),
+          profitLoss: ticker.profitLoss ? Number(ticker.profitLoss) : null,
+          positionSize: ticker.positionSize ? Number(ticker.positionSize) : null,
+          actualResult: ticker.actualResult ? Number(ticker.actualResult) : null
+        }))
+
         result[dayKey] = {
-          preMarket: entry.tickers.filter(t => t.type === 'pre_market'),
-          afterMarket: entry.tickers.filter(t => t.type === 'after_market')
+          preMarket: convertTickers(entry.tickers.filter(t => t.type === 'pre_market')),
+          afterMarket: convertTickers(entry.tickers.filter(t => t.type === 'after_market'))
         }
       } else {
         result[dayKey] = {

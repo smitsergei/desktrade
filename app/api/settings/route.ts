@@ -29,7 +29,15 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    return NextResponse.json(settings)
+    // Конвертируем Decimal в числа
+    const convertedSettings = {
+      ...settings,
+      deposit: Number(settings.deposit),
+      riskPercentage: Number(settings.riskPercentage),
+      maxPositionSize: Number(settings.maxPositionSize)
+    }
+
+    return NextResponse.json(convertedSettings)
   } catch (error) {
     console.error('Error fetching settings:', error)
     return NextResponse.json(
@@ -67,7 +75,15 @@ export async function PUT(request: NextRequest) {
       }
     })
 
-    return NextResponse.json(settings)
+    // Конвертируем Decimal в числа
+    const convertedSettings = {
+      ...settings,
+      deposit: Number(settings.deposit),
+      riskPercentage: Number(settings.riskPercentage),
+      maxPositionSize: Number(settings.maxPositionSize)
+    }
+
+    return NextResponse.json(convertedSettings)
   } catch (error) {
     console.error('Error updating settings:', error)
     return NextResponse.json(
