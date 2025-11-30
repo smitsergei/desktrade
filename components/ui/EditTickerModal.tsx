@@ -206,7 +206,7 @@ export default function EditTickerModal({
             <FormField label="Тип сделки">
               <input
                 type="text"
-                value={formData.type === 'pre_market' ? 'До открытия' : 'После закрытия'}
+                value={ticker.type === 'pre_market' ? 'До открытия' : 'После закрытия'}
                 disabled
                 className="input-trading w-full bg-gray-700/50 cursor-not-allowed"
               />
