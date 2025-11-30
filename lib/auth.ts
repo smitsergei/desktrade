@@ -13,29 +13,33 @@ export const authOptions: NextAuthOptions = {
     CredentialsProvider({
       name: 'credentials',
       credentials: {
-        email: { label: 'Email', type: 'email' },
+        username: { label: 'Username', type: 'text' },
         password: { label: 'Password', type: 'password' }
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
+        if (!credentials?.username || !credentials?.password) {
           return null
         }
 
         const user = await prisma.user.findUnique({
           where: {
-            email: credentials.email
+            username: credentials.username
           }
         })
 
-        if (!user) {
+        if (!user || !user.password) {
           return null
         }
 
-        // Для простоты пока без хеширования паролей
-        // В реальном проекте нужно добавить хеширование
+        const isPasswordValid = await bcrypt.compare(credentials.password, user.password)
+
+        if (!isPasswordValid) {
+          return null
+        }
 
         return {
           id: user.id,
+          username: user.username,
           email: user.email,
         }
       }
@@ -45,12 +49,14 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id
+        token.username = user.username
       }
       return token
     },
     async session({ session, token }) {
       if (token) {
         session.user.id = token.id as string
+        session.user.username = token.username as string
       }
       return session
     }
