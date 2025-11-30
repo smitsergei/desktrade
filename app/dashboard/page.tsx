@@ -707,18 +707,22 @@ export default function TraderPlanner() {
 
   const handleAddTask = async (text: string, priority: number = 2) => {
     try {
+      const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 })
       const response = await fetch('/api/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           text,
-          weekStartDate: startOfWeek(currentDate, { weekStartsOn: 1 }),
+          weekStartDate: weekStart.toISOString(),
           priority
         })
       })
 
       if (response.ok) {
         window.location.reload()
+      } else {
+        const error = await response.json()
+        console.error('Error adding task:', error)
       }
     } catch (error) {
       console.error('Error adding task:', error)

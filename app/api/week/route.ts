@@ -73,10 +73,18 @@ export async function GET(request: NextRequest) {
 
     // Получаем задачи на выходные
     const weekStart = startOfWeek(startDate, { weekStartsOn: 1 })
+    // Создаем диапазон дат для недели (понедельник - воскресенье)
+    const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 })
+
+    console.log('Fetching tasks for week:', { weekStart, weekEnd, userId: session.user.id })
+
     const weekendTasks = await prisma.weekendTask.findMany({
       where: {
         userId: session.user.id,
-        weekStartDate: weekStart
+        weekStartDate: {
+          gte: weekStart,
+          lte: weekEnd
+        }
       },
       orderBy: [
         { priority: 'desc' }, // Сначала по приоритету (высокий к низкому)
@@ -84,6 +92,8 @@ export async function GET(request: NextRequest) {
         { createdAt: 'desc' } // Потом новые
       ]
     })
+
+    console.log('Found tasks:', weekendTasks.length)
 
     result.weekendTasks = weekendTasks
 

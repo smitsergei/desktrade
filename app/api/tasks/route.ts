@@ -13,6 +13,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { text, weekStartDate, priority = 1 } = body
 
+    console.log('Creating task:', { text, weekStartDate, priority, userId: session.user.id })
+
     const newTask = await prisma.weekendTask.create({
       data: {
         userId: session.user.id,
@@ -22,6 +24,7 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    console.log('Task created:', newTask)
     return NextResponse.json(newTask)
   } catch (error) {
     console.error('Error creating task:', error)
