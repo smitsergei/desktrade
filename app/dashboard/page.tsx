@@ -410,8 +410,11 @@ function PriorityTasks({ tasks, onAddTask, onToggleTask }: {
         {tasks.map((task) => (
           <div
             key={task.id}
-            className="flex items-start gap-3 p-3 rounded-lg hover:bg-white/5 transition-all cursor-pointer group animate-slide-in border"
-            style={getPriorityBg(task.priority || 1)}
+            className={`flex items-start gap-3 p-3 rounded-lg hover:bg-white/5 transition-all cursor-pointer group animate-slide-in border ${
+              task.priority === 3 ? 'bg-red-500/10 border-red-500/30' :
+              task.priority === 2 ? 'bg-yellow-500/10 border-yellow-500/30' :
+              'bg-green-500/10 border-green-500/30'
+            }`}
             onClick={() => onToggleTask(task.id)}
           >
             <div className="mt-0.5">
