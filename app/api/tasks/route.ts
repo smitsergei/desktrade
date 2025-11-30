@@ -11,13 +11,14 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { text, weekStartDate } = body
+    const { text, weekStartDate, priority = 1 } = body
 
     const newTask = await prisma.weekendTask.create({
       data: {
         userId: session.user.id,
         text,
-        weekStartDate: new Date(weekStartDate)
+        weekStartDate: new Date(weekStartDate),
+        priority
       }
     })
 

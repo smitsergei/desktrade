@@ -352,52 +352,92 @@ function TickerList({ items, dayKey, type }: {
   )
 }
 
-// Enhanced Weekend Notes
-function WeekendNotes({ tasks, onAddTask, onToggleTask }: {
+// Enhanced Priority Tasks
+function PriorityTasks({ tasks, onAddTask, onToggleTask }: {
   tasks: WeekendTask[]
-  onAddTask: (text: string) => void
+  onAddTask: (text: string, priority: number) => void
   onToggleTask: (id: string) => void
 }) {
   const [newTask, setNewTask] = useState('')
+  const [priority, setPriority] = useState(2)
   const [showInput, setShowInput] = useState(false)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (newTask.trim()) {
-      onAddTask(newTask.trim())
+      onAddTask(newTask.trim(), priority)
       setNewTask('')
+      setPriority(2)
       setShowInput(false)
     }
   }
 
+  const getPriorityLabel = (priority: number) => {
+    switch (priority) {
+      case 3: return 'Высокий'
+      case 2: return 'Средний'
+      case 1: return 'Низкий'
+      default: return 'Средний'
+    }
+  }
+
+  const getPriorityColor = (priority: number) => {
+    switch (priority) {
+      case 3: return 'text-red-400'
+      case 2: return 'text-yellow-400'
+      case 1: return 'text-green-400'
+      default: return 'text-yellow-400'
+    }
+  }
+
+  const getPriorityBg = (priority: number) => {
+    switch (priority) {
+      case 3: return 'bg-red-500/10 border-red-500/30'
+      case 2: return 'bg-yellow-500/10 border-yellow-500/30'
+      case 1: return 'bg-green-500/10 border-green-500/30'
+      default: return 'bg-yellow-500/10 border-yellow-500/30'
+    }
+  }
+
   return (
-    <div className="glass-card rounded-xl p-4" style={{ background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(139, 92, 246, 0.02) 100%)' }}>
+    <div className="glass-card rounded-xl p-4" style={{ background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.05) 0%, rgba(245, 158, 11, 0.03) 100%)' }}>
       <div className="flex items-center gap-2 mb-4">
-        <Target size={20} className="text-purple-400" />
-        <h3 className="font-bold text-gradient">План на выходные</h3>
+        <Target size={20} className="text-red-400" />
+        <h3 className="font-bold text-gradient">Приоритетные задачи</h3>
       </div>
 
       <div className="space-y-2 mb-4">
         {tasks.map((task) => (
           <div
             key={task.id}
-            className="flex items-start gap-3 p-2 rounded-lg hover:bg-purple-500/5 transition-colors cursor-pointer group"
+            className="flex items-start gap-3 p-3 rounded-lg hover:bg-white/5 transition-all cursor-pointer group animate-slide-in border"
+            style={getPriorityBg(task.priority || 1)}
             onClick={() => onToggleTask(task.id)}
           >
             <div className="mt-0.5">
               <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all ${
                 task.done
-                  ? 'bg-purple-500 border-purple-500'
-                  : 'border-gray-600 group-hover:border-purple-400'
+                  ? 'bg-red-500 border-red-500'
+                  : 'border-gray-600 group-hover:border-red-400'
               }`}>
                 {task.done && <Check size={10} className="text-white" />}
               </div>
             </div>
-            <span className={`text-sm ${task.done ? 'line-through' : ''}`} style={{
-              color: task.done ? 'var(--text-muted)' : 'var(--text-secondary)'
-            }}>
-              {task.text}
-            </span>
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <span className={`text-xs font-bold ${getPriorityColor(task.priority || 1)}`}>
+                  {getPriorityLabel(task.priority || 1)}
+                </span>
+                <span className={`text-xs font-mono`} style={{ color: 'var(--text-muted)' }}>
+                  {task.priority === 3 ? '!!!' : task.priority === 2 ? '!!' : '!'}
+                </span>
+              </div>
+              <span className={`text-sm ${task.done ? 'line-through opacity-60' : ''}`} style={{
+                color: task.done ? 'var(--text-muted)' : 'var(--text-secondary)'
+              }}>
+                {task.text}
+              </span>
+            </div>
           </div>
         ))}
       </div>
@@ -411,25 +451,59 @@ function WeekendNotes({ tasks, onAddTask, onToggleTask }: {
           Добавить задачу
         </button>
       ) : (
-        <form onSubmit={handleSubmit} className="space-y-2">
+        <form onSubmit={handleSubmit} className="space-y-3">
           <input
             type="text"
             value={newTask}
             onChange={(e) => setNewTask(e.target.value)}
-            placeholder="Новая задача..."
+            placeholder="Введите приоритетную задачу..."
             className="input-trading w-full px-3 py-2 rounded-lg text-sm"
             autoFocus
           />
+          <div>
+            <label className="text-xs font-medium mb-2 block" style={{ color: 'var(--text-secondary)' }}>
+              Приоритет
+            </label>
+            <div className="flex gap-1">
+              {[
+                { value: 1, label: 'Низкий', color: 'text-green-400' },
+                { value: 2, label: 'Средний', color: 'text-yellow-400' },
+                { value: 3, label: 'Высокий', color: 'text-red-400' }
+              ].map(({ value, label, color }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setPriority(value)}
+                  className={`flex-1 py-2 px-2 rounded text-xs font-medium transition-all ${
+                    priority === value
+                      ? 'bg-white/10 border border-white/30'
+                      : 'hover:bg-white/5 border border-transparent'
+                  }`}
+                >
+                  <span className={priority === value ? color : 'var(--text-secondary)'}>
+                    {label}
+                  </span>
+                  <div className={`text-xs mt-1 ${priority === value ? color : 'var(--text-muted)'}`}>
+                    {'!'.repeat(value)}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="flex gap-2">
-            <button type="submit" className="btn-primary py-1 px-3 rounded text-sm">
-              Добавить
+            <button type="submit" className="btn-primary py-2 px-4 rounded text-sm flex-1">
+              Добавить задачу
             </button>
             <button
               type="button"
-              onClick={() => setShowInput(false)}
-              className="btn-secondary py-1 px-3 rounded text-sm"
+              onClick={() => {
+                setShowInput(false)
+                setNewTask('')
+                setPriority(2)
+              }}
+              className="btn-secondary py-2 px-3 rounded text-sm"
             >
-              Отмена
+              <X size={16} />
             </button>
           </div>
         </form>
@@ -481,14 +555,15 @@ export default function TraderPlanner() {
     loadData()
   }, [session, currentDate])
 
-  const handleAddTask = async (text: string) => {
+  const handleAddTask = async (text: string, priority: number = 2) => {
     try {
       const response = await fetch('/api/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           text,
-          weekStartDate: startOfWeek(currentDate, { weekStartsOn: 1 })
+          weekStartDate: startOfWeek(currentDate, { weekStartsOn: 1 }),
+          priority
         })
       })
 
@@ -678,7 +753,7 @@ export default function TraderPlanner() {
 
             {/* Sidebar */}
             <div className="xl:w-80">
-              <WeekendNotes
+              <PriorityTasks
                 tasks={plannerData.weekendTasks || []}
                 onAddTask={handleAddTask}
                 onToggleTask={handleToggleTask}

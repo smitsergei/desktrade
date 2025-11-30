@@ -84,6 +84,7 @@ model WeekendTask {
   weekStartDate DateTime @db.Date @map("week_start_date")
   text         String
   done         Boolean  @default(false)
+  priority     Int      @default(1) @db.SmallInt // 1 - низкий, 2 - средний, 3 - высокий
   createdAt    DateTime @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

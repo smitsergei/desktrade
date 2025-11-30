@@ -78,9 +78,11 @@ export async function GET(request: NextRequest) {
         userId: session.user.id,
         weekStartDate: weekStart
       },
-      orderBy: {
-        createdAt: 'asc'
-      }
+      orderBy: [
+        { priority: 'desc' }, // Сначала по приоритету (высокий к низкому)
+        { done: 'asc' },     // Затем невыполненные
+        { createdAt: 'desc' } // Потом новые
+      ]
     })
 
     result.weekendTasks = weekendTasks
