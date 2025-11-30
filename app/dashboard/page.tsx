@@ -52,10 +52,11 @@ function LoadingScreen() {
 }
 
 // Enhanced Ticker Component
-function TickerItem({ item, onResolve, onDelete }: {
+function TickerItem({ item, onResolve, onDelete, onEdit }: {
   item: Ticker
   onResolve: (id: string, status: string) => void
   onDelete: (id: string) => void
+  onEdit: (id: string) => void
 }) {
   const [showActions, setShowActions] = useState(false)
 
@@ -137,6 +138,12 @@ function TickerItem({ item, onResolve, onDelete }: {
           >
             <X size={12} className="inline mr-1" />
             Lost
+          </button>
+          <button
+            onClick={() => onEdit(item.id)}
+            className="p-1 text-xs rounded bg-gray-500/20 text-gray-400 hover:bg-gray-500/30 transition-all"
+          >
+            <Edit2 size={12} />
           </button>
           <button
             onClick={() => onDelete(item.id)}
@@ -327,6 +334,39 @@ function TickerList({ items, dayKey, type }: {
     }
   }
 
+  const handleEdit = async (tickerId: string) => {
+    // For now, let's implement a simple edit using prompt
+    // In a real app, you'd want a proper modal/form
+    try {
+      const response = await fetch(`/api/tickers/${tickerId}`)
+      if (response.ok) {
+        const ticker = await response.json()
+
+        const newTicker = prompt('Тикер:', ticker.ticker)
+        const newPrice = prompt('Цена предикшена:', ticker.predictionPrice)
+        const newNotes = prompt('Заметки:', ticker.notes || '')
+
+        if (newTicker && newPrice !== null) {
+          const updateResponse = await fetch(`/api/tickers/${tickerId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ticker: newTicker.toUpperCase(),
+              predictionPrice: parseFloat(newPrice),
+              notes: newNotes
+            })
+          })
+
+          if (updateResponse.ok) {
+            window.location.reload()
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error editing ticker:', error)
+    }
+  }
+
   if (!items || items.length === 0) {
     return (
       <div className="text-center py-4">
@@ -346,6 +386,7 @@ function TickerList({ items, dayKey, type }: {
           item={item}
           onResolve={handleResolve}
           onDelete={handleDelete}
+          onEdit={handleEdit}
         />
       ))}
     </div>
@@ -353,14 +394,19 @@ function TickerList({ items, dayKey, type }: {
 }
 
 // Enhanced Priority Tasks
-function PriorityTasks({ tasks, onAddTask, onToggleTask }: {
+function PriorityTasks({ tasks, onAddTask, onToggleTask, onEditTask, onDeleteTask }: {
   tasks: WeekendTask[]
   onAddTask: (text: string, priority: number) => void
   onToggleTask: (id: string) => void
+  onEditTask: (id: string, text: string, priority: number) => void
+  onDeleteTask: (id: string) => void
 }) {
   const [newTask, setNewTask] = useState('')
   const [priority, setPriority] = useState(2)
   const [showInput, setShowInput] = useState(false)
+  const [editingTask, setEditingTask] = useState<string | null>(null)
+  const [editText, setEditText] = useState('')
+  const [editPriority, setEditPriority] = useState(2)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -370,6 +416,28 @@ function PriorityTasks({ tasks, onAddTask, onToggleTask }: {
       setPriority(2)
       setShowInput(false)
     }
+  }
+
+  const handleEditSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (editText.trim() && editingTask) {
+      onEditTask(editingTask, editText.trim(), editPriority)
+      setEditingTask(null)
+      setEditText('')
+      setEditPriority(2)
+    }
+  }
+
+  const startEdit = (task: WeekendTask) => {
+    setEditingTask(task.id)
+    setEditText(task.text)
+    setEditPriority(task.priority)
+  }
+
+  const cancelEdit = () => {
+    setEditingTask(null)
+    setEditText('')
+    setEditPriority(2)
   }
 
   const getPriorityLabel = (priority: number) => {
@@ -408,39 +476,118 @@ function PriorityTasks({ tasks, onAddTask, onToggleTask }: {
 
       <div className="space-y-2 mb-4">
         {tasks.map((task) => (
-          <div
-            key={task.id}
-            className={`flex items-start gap-3 p-3 rounded-lg hover:bg-white/5 transition-all cursor-pointer group animate-slide-in border ${
-              task.priority === 3 ? 'bg-red-500/10 border-red-500/30' :
-              task.priority === 2 ? 'bg-yellow-500/10 border-yellow-500/30' :
-              'bg-green-500/10 border-green-500/30'
-            }`}
-            onClick={() => onToggleTask(task.id)}
-          >
-            <div className="mt-0.5">
-              <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all ${
-                task.done
-                  ? 'bg-red-500 border-red-500'
-                  : 'border-gray-600 group-hover:border-red-400'
+          <div key={task.id}>
+            {editingTask === task.id ? (
+              // Режим редактирования
+              <div className={`p-3 rounded-lg border animate-slide-in ${
+                task.priority === 3 ? 'bg-red-500/10 border-red-500/30' :
+                task.priority === 2 ? 'bg-yellow-500/10 border-yellow-500/30' :
+                'bg-green-500/10 border-green-500/30'
               }`}>
-                {task.done && <Check size={10} className="text-white" />}
+                <form onSubmit={handleEditSubmit} className="space-y-2">
+                  <input
+                    type="text"
+                    value={editText}
+                    onChange={(e) => setEditText(e.target.value)}
+                    className="input-trading w-full px-3 py-2 rounded-lg text-sm"
+                    autoFocus
+                  />
+                  <div className="flex gap-1">
+                    {[
+                      { value: 1, label: 'Низкий' },
+                      { value: 2, label: 'Средний' },
+                      { value: 3, label: 'Высокий' }
+                    ].map(({ value, label }) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setEditPriority(value)}
+                        className={`flex-1 py-1 px-1 rounded text-xs transition-all ${
+                          editPriority === value ? 'bg-white/20' : 'hover:bg-white/10'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <button type="submit" className="btn-primary py-1 px-3 rounded text-xs">
+                      Сохранить
+                    </button>
+                    <button
+                      type="button"
+                      onClick={cancelEdit}
+                      className="btn-secondary py-1 px-3 rounded text-xs"
+                    >
+                      Отмена
+                    </button>
+                  </div>
+                </form>
               </div>
-            </div>
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                <span className={`text-xs font-bold ${getPriorityColor(task.priority || 1)}`}>
-                  {getPriorityLabel(task.priority || 1)}
-                </span>
-                <span className={`text-xs font-mono`} style={{ color: 'var(--text-muted)' }}>
-                  {task.priority === 3 ? '!!!' : task.priority === 2 ? '!!' : '!'}
-                </span>
+            ) : (
+              // Режим просмотра
+              <div
+                className={`flex items-start gap-3 p-3 rounded-lg hover:bg-white/5 transition-all cursor-pointer group animate-slide-in border ${
+                  task.priority === 3 ? 'bg-red-500/10 border-red-500/30' :
+                  task.priority === 2 ? 'bg-yellow-500/10 border-yellow-500/30' :
+                  'bg-green-500/10 border-green-500/30'
+                }`}
+              >
+                <div className="mt-0.5">
+                  <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all ${
+                    task.done
+                      ? 'bg-red-500 border-red-500'
+                      : 'border-gray-600 group-hover:border-red-400'
+                  }`}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onToggleTask(task.id)
+                  }}
+                  >
+                    {task.done && <Check size={10} className="text-white" />}
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs font-bold ${getPriorityColor(task.priority || 1)}`}>
+                        {getPriorityLabel(task.priority || 1)}
+                      </span>
+                      <span className={`text-xs font-mono`} style={{ color: 'var(--text-muted)' }}>
+                        {task.priority === 3 ? '!!!' : task.priority === 2 ? '!!' : '!'}
+                      </span>
+                    </div>
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          startEdit(task)
+                        }}
+                        className="p-1 rounded hover:bg-white/10 transition-colors"
+                        style={{ color: 'var(--text-muted)' }}
+                      >
+                        <Edit2 size={14} />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onDeleteTask(task.id)
+                        }}
+                        className="p-1 rounded hover:bg-white/10 transition-colors"
+                        style={{ color: 'var(--text-muted)' }}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                  <span className={`text-sm ${task.done ? 'line-through opacity-60' : ''}`} style={{
+                    color: task.done ? 'var(--text-muted)' : 'var(--text-secondary)'
+                  }}>
+                    {task.text}
+                  </span>
+                </div>
               </div>
-              <span className={`text-sm ${task.done ? 'line-through opacity-60' : ''}`} style={{
-                color: task.done ? 'var(--text-muted)' : 'var(--text-secondary)'
-              }}>
-                {task.text}
-              </span>
-            </div>
+            )}
           </div>
         ))}
       </div>
@@ -589,6 +736,36 @@ export default function TraderPlanner() {
       }
     } catch (error) {
       console.error('Error toggling task:', error)
+    }
+  }
+
+  const handleEditTask = async (taskId: string, text: string, priority: number) => {
+    try {
+      const response = await fetch(`/api/tasks/${taskId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, priority })
+      })
+
+      if (response.ok) {
+        window.location.reload()
+      }
+    } catch (error) {
+      console.error('Error editing task:', error)
+    }
+  }
+
+  const handleDeleteTask = async (taskId: string) => {
+    try {
+      const response = await fetch(`/api/tasks/${taskId}`, {
+        method: 'DELETE'
+      })
+
+      if (response.ok) {
+        window.location.reload()
+      }
+    } catch (error) {
+      console.error('Error deleting task:', error)
     }
   }
 
@@ -760,6 +937,8 @@ export default function TraderPlanner() {
                 tasks={plannerData.weekendTasks || []}
                 onAddTask={handleAddTask}
                 onToggleTask={handleToggleTask}
+                onEditTask={handleEditTask}
+                onDeleteTask={handleDeleteTask}
               />
             </div>
           </div>

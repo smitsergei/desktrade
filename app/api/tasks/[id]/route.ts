@@ -32,7 +32,11 @@ export async function PUT(
     // Обновляем задачу
     const updatedTask = await prisma.weekendTask.update({
       where: { id: taskId },
-      data: body
+      data: {
+        ...(body.text !== undefined && { text: body.text }),
+        ...(body.priority !== undefined && { priority: body.priority }),
+        ...(body.done !== undefined && { done: body.done })
+      }
     })
 
     return NextResponse.json(updatedTask)

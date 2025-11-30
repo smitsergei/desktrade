@@ -12,20 +12,20 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { ticker, rating, predictionPrice, type, positionSize, confidenceLevel, weeklyEntryId } = body
+    const { ticker, rating, predictionPrice, type, positionSize, confidenceLevel, dayKey, notes } = body
 
     // Получаем или создаем weekly entry
     const entry = await prisma.weeklyEntry.upsert({
       where: {
         userId_date: {
           userId: session.user.id,
-          date: new Date(weeklyEntryId)
+          date: new Date(dayKey)
         }
       },
       update: {},
       create: {
         userId: session.user.id,
-        date: new Date(weeklyEntryId)
+        date: new Date(dayKey)
       }
     })
 
@@ -39,6 +39,7 @@ export async function POST(request: NextRequest) {
         type,
         positionSize,
         confidenceLevel,
+        notes,
         status: 'pending'
       }
     })
@@ -46,6 +47,43 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(newTicker)
   } catch (error) {
     console.error('Error creating ticker:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
+
+// PUT для обновления тикера
+export async function PUT(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const { id, ticker, predictionPrice, notes, rating, confidenceLevel } = body
+
+    const updatedTicker = await prisma.ticker.update({
+      where: {
+        id,
+        weeklyEntry: {
+          userId: session.user.id
+        }
+      },
+      data: {
+        ticker,
+        predictionPrice,
+        notes,
+        rating,
+        confidenceLevel
+      }
+    })
+
+    return NextResponse.json(updatedTicker)
+  } catch (error) {
+    console.error('Error updating ticker:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
