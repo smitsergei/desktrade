@@ -391,6 +391,8 @@ function PriorityTasks({ tasks, onAddTask, onToggleTask, onEditTask, onDeleteTas
       if (!response.ok) {
         throw new Error('Failed to reorder tasks')
       }
+      // Перезагружаем данные после успешного переупорядочивания
+      await loadData()
     } catch (error) {
       console.error('Error reordering tasks:', error)
     }
@@ -637,8 +639,13 @@ export default function TraderPlanner() {
 
   const handleToggleTask = async (taskId: string) => {
     try {
+      // Находим текущую задачу в данных недели
+      const currentTask = weekData.weekendTasks?.find(task => task.id === taskId)
+
       const response = await fetch(`/api/tasks/${taskId}`, {
-        method: 'PATCH'
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ done: !currentTask?.done })
       })
 
       if (response.ok) {
