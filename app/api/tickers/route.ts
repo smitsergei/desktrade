@@ -44,6 +44,7 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    console.log('Ticker created:', newTicker)
     return NextResponse.json(newTicker)
   } catch (error) {
     console.error('Error creating ticker:', error)

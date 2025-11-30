@@ -158,7 +158,11 @@ function TickerItem({ item, onResolve, onDelete, onEdit }: {
 }
 
 // Enhanced Input Component
-function TickerInput({ dayKey, type }: { dayKey: string, type: string }) {
+function TickerInput({ dayKey, type, onSuccess }: {
+  dayKey: string,
+  type: string,
+  onSuccess?: () => void
+}) {
   const [ticker, setTicker] = useState('')
   const [rating, setRating] = useState(3)
   const [predictionPrice, setPredictionPrice] = useState('')
@@ -205,7 +209,7 @@ function TickerInput({ dayKey, type }: { dayKey: string, type: string }) {
         setPredictionPrice('')
         setNotes('')
         setShowForm(false)
-        window.location.reload()
+        if (onSuccess) onSuccess()
       }
     } catch (error) {
       console.error('Error adding ticker:', error)
@@ -299,10 +303,11 @@ function TickerInput({ dayKey, type }: { dayKey: string, type: string }) {
 }
 
 // Enhanced Ticker List
-function TickerList({ items, dayKey, type }: {
+function TickerList({ items, dayKey, type, onSuccess }: {
   items: Ticker[]
   dayKey: string
   type: string
+  onSuccess?: () => void
 }) {
   const handleResolve = async (tickerId: string, status: string) => {
     try {
@@ -313,7 +318,7 @@ function TickerList({ items, dayKey, type }: {
       })
 
       if (response.ok) {
-        window.location.reload()
+        if (onSuccess) onSuccess()
       }
     } catch (error) {
       console.error('Error resolving ticker:', error)
@@ -327,7 +332,7 @@ function TickerList({ items, dayKey, type }: {
       })
 
       if (response.ok) {
-        window.location.reload()
+        if (onSuccess) onSuccess()
       }
     } catch (error) {
       console.error('Error deleting ticker:', error)
@@ -358,7 +363,7 @@ function TickerList({ items, dayKey, type }: {
           })
 
           if (updateResponse.ok) {
-            window.location.reload()
+            if (onSuccess) onSuccess()
           }
         }
       }
@@ -689,6 +694,7 @@ export default function TraderPlanner() {
           `/api/week?start=${weekStart.toISOString()}&end=${weekEnd.toISOString()}`
         )
         const data = await response.json()
+        console.log('Loaded data:', data)
         setPlannerData(data)
 
         // Load settings
@@ -719,7 +725,8 @@ export default function TraderPlanner() {
       })
 
       if (response.ok) {
-        window.location.reload()
+        // Обновляем данные без перезагрузки
+        loadData()
       } else {
         const error = await response.json()
         console.error('Error adding task:', error)
@@ -736,7 +743,7 @@ export default function TraderPlanner() {
       })
 
       if (response.ok) {
-        window.location.reload()
+        loadData()
       }
     } catch (error) {
       console.error('Error toggling task:', error)
@@ -752,7 +759,7 @@ export default function TraderPlanner() {
       })
 
       if (response.ok) {
-        window.location.reload()
+        loadData()
       }
     } catch (error) {
       console.error('Error editing task:', error)
@@ -766,7 +773,7 @@ export default function TraderPlanner() {
       })
 
       if (response.ok) {
-        window.location.reload()
+        loadData()
       }
     } catch (error) {
       console.error('Error deleting task:', error)
@@ -904,10 +911,12 @@ export default function TraderPlanner() {
                           items={dayData.preMarket}
                           dayKey={dayKey}
                           type="pre_market"
+                          onSuccess={loadData}
                         />
                         <TickerInput
                           dayKey={dayKey}
                           type="pre_market"
+                          onSuccess={loadData}
                         />
                       </div>
 
@@ -923,10 +932,12 @@ export default function TraderPlanner() {
                           items={dayData.afterMarket}
                           dayKey={dayKey}
                           type="after_market"
+                          onSuccess={loadData}
                         />
                         <TickerInput
                           dayKey={dayKey}
                           type="after_market"
+                          onSuccess={loadData}
                         />
                       </div>
                     </div>
