@@ -15,24 +15,35 @@ export async function GET(request: NextRequest) {
     const startDate = new Date(searchParams.get('start') || '')
     const endDate = new Date(searchParams.get('end') || '')
 
+    // Нормализуем даты (убираем временную часть)
+    const normalizedStartDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
+    const normalizedEndDate = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate())
+
+    console.log('Date range:', {
+      originalStart: startDate,
+      normalizedStart: normalizedStartDate,
+      originalEnd: endDate,
+      normalizedEnd: normalizedEndDate
+    })
+
     // Получаем или создаем записи для каждой даты недели
     const weekDays = []
-    const currentDay = new Date(startDate)
-    while (currentDay <= endDate) {
-      weekDays.push(currentDay)
+    const currentDay = new Date(normalizedStartDate)
+    while (currentDay <= normalizedEndDate) {
+      weekDays.push(new Date(currentDay))
       currentDay.setDate(currentDay.getDate() + 1)
     }
 
     const result: any = {}
 
     // Получаем weekly entries
-    console.log('Searching entries between:', { startDate, endDate })
+    console.log('Searching entries between:', { normalizedStartDate, normalizedEndDate })
     const weeklyEntries = await prisma.weeklyEntry.findMany({
       where: {
         userId: session.user.id,
         date: {
-          gte: startDate,
-          lte: endDate
+          gte: normalizedStartDate,
+          lte: normalizedEndDate
         }
       },
       include: {

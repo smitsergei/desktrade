@@ -16,20 +16,22 @@ export async function POST(request: NextRequest) {
 
     console.log('Creating ticker for dayKey:', dayKey)
     const entryDate = new Date(dayKey)
-    console.log('Entry date:', entryDate)
+    // Нормализуем дату, чтобы убрать временную зону
+    const normalizedEntryDate = new Date(entryDate.getFullYear(), entryDate.getMonth(), entryDate.getDate())
+    console.log('Entry date:', entryDate, 'Normalized:', normalizedEntryDate)
 
     // Получаем или создаем weekly entry
     const entry = await prisma.weeklyEntry.upsert({
       where: {
         userId_date: {
           userId: session.user.id,
-          date: entryDate
+          date: normalizedEntryDate
         }
       },
       update: {},
       create: {
         userId: session.user.id,
-        date: entryDate
+        date: normalizedEntryDate
       }
     })
 
