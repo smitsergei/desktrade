@@ -33,6 +33,7 @@ import {
 } from 'date-fns'
 import { ru } from 'date-fns/locale'
 import { Ticker, WeekendTask } from '@/types'
+import EditTickerModal from '@/components/ui/EditTickerModal'
 
 // Enhanced Loading Component
 function LoadingScreen() {
@@ -303,11 +304,12 @@ function TickerInput({ dayKey, type, onSuccess }: {
 }
 
 // Enhanced Ticker List
-function TickerList({ items, dayKey, type, onSuccess }: {
+function TickerList({ items, dayKey, type, onSuccess, onEditTicker }: {
   items: Ticker[]
   dayKey: string
   type: string
   onSuccess?: () => void
+  onEditTicker?: (ticker: Ticker) => void
 }) {
   const handleResolve = async (tickerId: string, status: string) => {
     try {
@@ -339,39 +341,6 @@ function TickerList({ items, dayKey, type, onSuccess }: {
     }
   }
 
-  const handleEdit = async (tickerId: string) => {
-    // For now, let's implement a simple edit using prompt
-    // In a real app, you'd want a proper modal/form
-    try {
-      const response = await fetch(`/api/tickers/${tickerId}`)
-      if (response.ok) {
-        const ticker = await response.json()
-
-        const newTicker = prompt('Тикер:', ticker.ticker)
-        const newPrice = prompt('Цена предикшена:', ticker.predictionPrice)
-        const newNotes = prompt('Заметки:', ticker.notes || '')
-
-        if (newTicker && newPrice !== null) {
-          const updateResponse = await fetch(`/api/tickers/${tickerId}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              ticker: newTicker.toUpperCase(),
-              predictionPrice: parseFloat(newPrice),
-              notes: newNotes
-            })
-          })
-
-          if (updateResponse.ok) {
-            if (onSuccess) onSuccess()
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error editing ticker:', error)
-    }
-  }
-
   if (!items || items.length === 0) {
     return (
       <div className="text-center py-4">
@@ -391,7 +360,7 @@ function TickerList({ items, dayKey, type, onSuccess }: {
           item={item}
           onResolve={handleResolve}
           onDelete={handleDelete}
-          onEdit={handleEdit}
+          onEdit={() => onEditTicker && onEditTicker(item)}
         />
       ))}
     </div>
@@ -675,6 +644,8 @@ export default function TraderPlanner() {
   const [plannerData, setPlannerData] = useState<any>({})
   const [loading, setLoading] = useState(true)
   const [userSettings, setUserSettings] = useState<any>(null)
+  const [editingTicker, setEditingTicker] = useState<Ticker | null>(null)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
 
   // Load data function - с параметром для контроля загрузки
   const loadData = useCallback(async (showLoading = false) => {
@@ -781,6 +752,38 @@ export default function TraderPlanner() {
     } catch (error) {
       console.error('Error deleting task:', error)
     }
+  }
+
+  // Функции для редактирования тикеров
+  const handleEditTicker = (ticker: Ticker) => {
+    setEditingTicker(ticker)
+    setIsEditModalOpen(true)
+  }
+
+  const handleSaveTicker = async (tickerId: string, data: any) => {
+    try {
+      const response = await fetch(`/api/tickers/${tickerId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      })
+
+      if (response.ok) {
+        loadData()
+        setIsEditModalOpen(false)
+        setEditingTicker(null)
+      } else {
+        const error = await response.json()
+        console.error('Error updating ticker:', error)
+      }
+    } catch (error) {
+      console.error('Error updating ticker:', error)
+    }
+  }
+
+  const handleCloseEditModal = () => {
+    setIsEditModalOpen(false)
+    setEditingTicker(null)
   }
 
   // Date logic
@@ -908,6 +911,7 @@ export default function TraderPlanner() {
                             dayKey={dayKey}
                             type="pre_market"
                             onSuccess={loadData}
+                            onEditTicker={handleEditTicker}
                           />
                         </div>
                         <TickerInput
@@ -931,6 +935,7 @@ export default function TraderPlanner() {
                             dayKey={dayKey}
                             type="after_market"
                             onSuccess={loadData}
+                            onEditTicker={handleEditTicker}
                           />
                         </div>
                         <TickerInput
@@ -945,8 +950,8 @@ export default function TraderPlanner() {
               </div>
             </div>
 
-            {/* Боковая панель с задачами - фиксированная ширина справа */}
-            <div className="w-80 flex-shrink-0">
+            {/* Боковая панель с задачами - увеличенная ширина 500px */}
+            <div className="w-[500px] flex-shrink-0">
               <PriorityTasks
                 tasks={plannerData.weekendTasks || []}
                 onAddTask={handleAddTask}
@@ -958,6 +963,14 @@ export default function TraderPlanner() {
           </div>
         </div>
       </main>
+
+      {/* Модальное окно редактирования тикера */}
+      <EditTickerModal
+        ticker={editingTicker}
+        isOpen={isEditModalOpen}
+        onClose={handleCloseEditModal}
+        onSave={handleSaveTicker}
+      />
     </div>
   )
 }
