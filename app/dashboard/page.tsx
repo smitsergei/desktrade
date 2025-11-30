@@ -640,13 +640,14 @@ export default function TraderPlanner() {
 
   const handleToggleTask = async (taskId: string) => {
     try {
-      // Находим текущую задачу в данных недели
-      const currentTask = tasks?.find(task => task.id === taskId)
+      // Получаем текущее состояние задачи с сервера перед переключением
+      const getResponse = await fetch(`/api/tasks/${taskId}`)
+      const task = await getResponse.json()
 
       const response = await fetch(`/api/tasks/${taskId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ done: !currentTask?.done })
+        body: JSON.stringify({ done: !task.done })
       })
 
       if (response.ok) {
