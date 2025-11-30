@@ -133,7 +133,7 @@ export default function TraderPlanner() {
 
       // Расчет размера позиции
       const riskAmount = userSettings?.deposit * (userSettings?.riskPercentage / 100)
-      const positionSize = riskAmount / parseFloat(predictionPrice || 0.1)
+      const positionSize = riskAmount / parseFloat(predictionPrice || '0.1')
 
       const newItem = {
         ticker: ticker.toUpperCase(),
