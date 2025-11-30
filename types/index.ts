@@ -28,6 +28,7 @@ export interface WeekendTask {
   id: string
   text: string
   done: boolean
+  priority: number // 1 - низкий, 2 - средний, 3 - высокий
   createdAt: Date
 }
 
