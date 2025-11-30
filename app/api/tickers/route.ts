@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { ticker, rating, predictionPrice, type, positionSize, confidenceLevel, dayKey, notes } = body
+    const { ticker, rating, predictionPrice, type, confidenceLevel, dayKey, notes } = body
 
     console.log('Creating ticker for dayKey:', dayKey)
     const entryDate = new Date(dayKey)
@@ -43,7 +43,6 @@ export async function POST(request: NextRequest) {
         rating,
         predictionPrice,
         type,
-        positionSize,
         confidenceLevel,
         notes,
         status: 'pending'

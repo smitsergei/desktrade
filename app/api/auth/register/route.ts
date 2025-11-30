@@ -36,7 +36,6 @@ export async function POST(request: NextRequest) {
         settings: {
           create: {
             deposit: 10000,
-            riskPercentage: 2,
           }
         }
       }

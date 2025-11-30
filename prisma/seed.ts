@@ -16,7 +16,6 @@ async function main() {
       settings: {
         create: {
           deposit: 10000,
-          riskPercentage: 2,
         }
       }
     },

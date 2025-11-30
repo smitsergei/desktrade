@@ -23,7 +23,6 @@ model User {
   settings        UserSettings?
   weeklyEntries   WeeklyEntry[]
   weekendTasks    WeekendTask[]
-  balanceHistory  BalanceHistory[]
 
   @@map("users")
 }
@@ -32,8 +31,6 @@ model UserSettings {
   id             String    @id @default(cuid())
   userId         String    @unique @map("user_id")
   deposit        Decimal   @default(1000) @map("deposit") @db.Decimal(15, 2)
-  riskPercentage Decimal   @default(2) @map("risk_percentage") @db.Decimal(5, 2)
-  maxPositionSize Decimal  @default(10) @map("max_position_size") @db.Decimal(5, 2)
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
 
@@ -65,15 +62,12 @@ model Ticker {
   type             String    @db.VarChar(20) // 'pre_market' or 'after_market'
   status           String    @default("pending") @db.VarChar(20) // 'pending', 'won', 'lost', 'cancelled'
   actualResult     Decimal?  @map("actual_result") @db.Decimal(5, 4)
-  profitLoss       Decimal?  @map("profit_loss") @db.Decimal(15, 2)
-  positionSize     Decimal?  @map("position_size") @db.Decimal(15, 2)
   confidenceLevel  Int       @map("confidence_level")
   notes            String?
   createdAt        DateTime  @default(now()) @map("created_at")
   resolvedAt       DateTime? @map("resolved_at")
 
   weeklyEntry   WeeklyEntry    @relation(fields: [weeklyEntryId], references: [id], onDelete: Cascade)
-  balanceHistories BalanceHistory[]
 
   @@map("tickers")
 }
@@ -85,25 +79,10 @@ model WeekendTask {
   text         String
   done         Boolean  @default(false)
   priority     Int      @default(1) @db.SmallInt // 1 - низкий, 2 - средний, 3 - высокий
+  order        Int      @default(1) // Порядок в пределах группы приоритета
   createdAt    DateTime @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("weekend_tasks")
-}
-
-model BalanceHistory {
-  id                String    @id @default(cuid())
-  userId            String    @map("user_id")
-  balanceBefore     Decimal?  @map("balance_before") @db.Decimal(15, 2)
-  balanceAfter      Decimal?  @map("balance_after") @db.Decimal(15, 2)
-  changeAmount      Decimal?  @map("change_amount") @db.Decimal(15, 2)
-  changePercentage  Decimal?  @map("change_percentage") @db.Decimal(5, 2)
-  tickerId          String?   @map("ticker_id")
-  createdAt         DateTime  @default(now()) @map("created_at")
-
-  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  ticker Ticker? @relation(fields: [tickerId], references: [id])
-
-  @@map("balance_history")
 }

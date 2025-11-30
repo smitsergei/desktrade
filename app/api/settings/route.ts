@@ -22,9 +22,7 @@ export async function GET(request: NextRequest) {
       settings = await prisma.userSettings.create({
         data: {
           userId: session.user.id,
-          deposit: 1000,
-          riskPercentage: 2,
-          maxPositionSize: 10
+          deposit: 1000
         }
       })
     }
@@ -32,9 +30,7 @@ export async function GET(request: NextRequest) {
     // Конвертируем Decimal в числа
     const convertedSettings = {
       ...settings,
-      deposit: Number(settings.deposit),
-      riskPercentage: Number(settings.riskPercentage),
-      maxPositionSize: Number(settings.maxPositionSize)
+      deposit: Number(settings.deposit)
     }
 
     return NextResponse.json(convertedSettings)
@@ -55,7 +51,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { deposit, riskPercentage, maxPositionSize } = body
+    const { deposit } = body
 
     // Обновляем настройки
     const settings = await prisma.userSettings.upsert({
@@ -63,24 +59,18 @@ export async function PUT(request: NextRequest) {
         userId: session.user.id
       },
       update: {
-        deposit,
-        riskPercentage,
-        maxPositionSize
+        deposit
       },
       create: {
         userId: session.user.id,
-        deposit,
-        riskPercentage,
-        maxPositionSize
+        deposit
       }
     })
 
     // Конвертируем Decimal в числа
     const convertedSettings = {
       ...settings,
-      deposit: Number(settings.deposit),
-      riskPercentage: Number(settings.riskPercentage),
-      maxPositionSize: Number(settings.maxPositionSize)
+      deposit: Number(settings.deposit)
     }
 
     return NextResponse.json(convertedSettings)

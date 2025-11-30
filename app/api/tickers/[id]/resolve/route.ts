@@ -17,23 +17,12 @@ export async function POST(
     const tickerId = params.id
     const { status } = await request.json()
 
-    // Получаем тикер и настройки пользователя
+    // Получаем тикер пользователя
     const ticker = await prisma.ticker.findFirst({
       where: {
         id: tickerId,
         weeklyEntry: {
           userId: session.user.id
-        }
-      },
-      include: {
-        weeklyEntry: {
-          include: {
-            user: {
-              include: {
-                settings: true
-              }
-            }
-          }
         }
       }
     })
@@ -42,59 +31,18 @@ export async function POST(
       return NextResponse.json({ error: 'Ticker not found' }, { status: 404 })
     }
 
-    const settings = ticker.weeklyEntry.user.settings
-    if (!settings) {
-      return NextResponse.json({ error: 'User settings not found' }, { status: 404 })
-    }
-
-    // Рассчитываем P&L
-    let profitLoss = 0
-    if (status === 'won') {
-      profitLoss = Number(ticker.positionSize) // При выигрыше получаем полную сумму
-    } else if (status === 'lost') {
-      profitLoss = -Number(ticker.positionSize) * Number(ticker.predictionPrice) // При проигрыше теряем позицию * цену
-    }
-
-    // Обновляем баланс
-    const newBalance = Number(settings.deposit) + profitLoss
-
-    // Обновляем транзакцией
-    await prisma.$transaction([
-      // Обновляем тикер
-      prisma.ticker.update({
-        where: { id: tickerId },
-        data: {
-          status,
-          profitLoss,
-          resolvedAt: new Date()
-        }
-      }),
-
-      // Обновляем баланс пользователя
-      prisma.userSettings.update({
-        where: { userId: session.user.id },
-        data: {
-          deposit: newBalance
-        }
-      }),
-
-      // Добавляем запись в историю баланса
-      prisma.balanceHistory.create({
-        data: {
-          userId: session.user.id,
-          balanceBefore: Number(settings.deposit),
-          balanceAfter: newBalance,
-          changeAmount: profitLoss,
-          changePercentage: (profitLoss / Number(settings.deposit)) * 100,
-          tickerId
-        }
-      })
-    ])
+    // Обновляем только статус сделки
+    await prisma.ticker.update({
+      where: { id: tickerId },
+      data: {
+        status,
+        resolvedAt: new Date()
+      }
+    })
 
     return NextResponse.json({
       success: true,
-      profitLoss,
-      newBalance
+      status
     })
   } catch (error) {
     console.error('Error resolving ticker:', error)

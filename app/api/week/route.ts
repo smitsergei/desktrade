@@ -75,8 +75,6 @@ export async function GET(request: NextRequest) {
         const convertTickers = (tickers: any[]) => tickers.map(ticker => ({
           ...ticker,
           predictionPrice: Number(ticker.predictionPrice),
-          profitLoss: ticker.profitLoss ? Number(ticker.profitLoss) : null,
-          positionSize: ticker.positionSize ? Number(ticker.positionSize) : null,
           actualResult: ticker.actualResult ? Number(ticker.actualResult) : null
         }))
 
@@ -109,8 +107,9 @@ export async function GET(request: NextRequest) {
       },
       orderBy: [
         { priority: 'desc' }, // Сначала по приоритету (высокий к низкому)
-        { done: 'asc' },     // Затем невыполненные
-        { createdAt: 'desc' } // Потом новые
+        { order: 'asc' },      // Затем по порядку в пределах приоритета
+        { done: 'asc' },       // Затем невыполненные
+        { createdAt: 'desc' }  // Потом новые
       ]
     })
 

@@ -32,8 +32,6 @@ export async function GET(
     const convertedTicker = {
       ...ticker,
       predictionPrice: Number(ticker.predictionPrice),
-      profitLoss: ticker.profitLoss ? Number(ticker.profitLoss) : null,
-      positionSize: ticker.positionSize ? Number(ticker.positionSize) : null,
       actualResult: ticker.actualResult ? Number(ticker.actualResult) : null
     }
 
@@ -84,8 +82,6 @@ export async function PUT(
         ...(body.rating !== undefined && { rating: body.rating }),
         ...(body.predictionPrice !== undefined && { predictionPrice: body.predictionPrice }),
         ...(body.actualResult !== undefined && { actualResult: body.actualResult }),
-        ...(body.profitLoss !== undefined && { profitLoss: body.profitLoss }),
-        ...(body.positionSize !== undefined && { positionSize: body.positionSize }),
         ...(body.confidenceLevel !== undefined && { confidenceLevel: body.confidenceLevel }),
         ...(body.notes !== undefined && { notes: body.notes }),
         ...(body.status !== undefined && { status: body.status })

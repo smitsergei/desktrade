@@ -15,12 +15,24 @@ export async function POST(request: NextRequest) {
 
     console.log('Creating task:', { text, weekStartDate, priority, userId: session.user.id })
 
+    // Находим максимальный порядок для задач с таким же приоритетом
+    const maxOrder = await prisma.weekendTask.findFirst({
+      where: {
+        userId: session.user.id,
+        weekStartDate: new Date(weekStartDate),
+        priority
+      },
+      select: { order: true },
+      orderBy: { order: 'desc' }
+    })
+
     const newTask = await prisma.weekendTask.create({
       data: {
         userId: session.user.id,
         text,
         weekStartDate: new Date(weekStartDate),
-        priority
+        priority,
+        order: (maxOrder?.order || 0) + 1
       }
     })
 

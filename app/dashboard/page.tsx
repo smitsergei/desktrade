@@ -18,10 +18,10 @@ import {
   Edit2,
   Check,
   X,
-  Wallet,
   Activity,
   Target,
-  AlertCircle
+  AlertCircle,
+  Download
 } from 'lucide-react'
 import {
   format,
@@ -34,6 +34,8 @@ import {
 import { ru } from 'date-fns/locale'
 import { Ticker, WeekendTask } from '@/types'
 import EditTickerModal from '@/components/ui/EditTickerModal'
+import ExportModal from '@/components/ui/ExportModal'
+import DraggableTaskList from '@/components/ui/DraggableTaskList'
 
 // Enhanced Loading Component
 function LoadingScreen() {
@@ -88,26 +90,24 @@ function TickerItem({ item, onResolve, onDelete, onEdit }: {
           <span className="font-mono font-semibold text-cyan-400">{item.ticker}</span>
           <div className="flex items-center gap-2 mt-1">
             <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-              Цена: {item.predictionPrice.toFixed(2)}
+              Цена: {item.predictionPrice?.toFixed(2) || '0.00'}
             </span>
-            {item.positionSize && (
-              <span className="text-xs text-mono" style={{ color: 'var(--accent-purple)' }}>
-                {item.positionSize.toFixed(0)} шт
-              </span>
-            )}
           </div>
         </div>
         <div className="flex items-center gap-2">
           <span className={`text-xs font-mono font-bold ${getStatusColor(item.status)}`}>
             {getStatusText(item.status)}
           </span>
-          {item.profitLoss !== null && item.profitLoss !== undefined && (
-            <span className={`text-xs font-mono ${item.profitLoss >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-              {item.profitLoss >= 0 ? '+' : ''}{item.profitLoss.toFixed(2)}
-            </span>
-          )}
         </div>
       </div>
+
+      {item.notes && (
+        <div className="mb-2 p-2 rounded" style={{ background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+          <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+            <span className="font-medium" style={{ color: 'var(--accent-cyan)' }}>Заметка:</span> {item.notes}
+          </p>
+        </div>
+      )}
 
       {item.confidenceLevel && (
         <div className="mb-2">
@@ -124,31 +124,37 @@ function TickerItem({ item, onResolve, onDelete, onEdit }: {
         </div>
       )}
 
-      {showActions && item.status === 'pending' && (
+      {showActions && (
         <div className="flex gap-1 animate-slide-in">
-          <button
-            onClick={() => onResolve(item.id, 'won')}
-            className="flex-1 py-1 px-2 text-xs font-medium rounded bg-green-500/20 text-green-400 hover:bg-green-500/30 transition-all"
-          >
-            <Check size={12} className="inline mr-1" />
-            Won
-          </button>
-          <button
-            onClick={() => onResolve(item.id, 'lost')}
-            className="flex-1 py-1 px-2 text-xs font-medium rounded bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all"
-          >
-            <X size={12} className="inline mr-1" />
-            Lost
-          </button>
+          {item.status === 'pending' && (
+            <>
+              <button
+                onClick={() => onResolve(item.id, 'won')}
+                className="flex-1 py-1 px-2 text-xs font-medium rounded bg-green-500/20 text-green-400 hover:bg-green-500/30 transition-all"
+              >
+                <Check size={12} className="inline mr-1" />
+                Won
+              </button>
+              <button
+                onClick={() => onResolve(item.id, 'lost')}
+                className="flex-1 py-1 px-2 text-xs font-medium rounded bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all"
+              >
+                <X size={12} className="inline mr-1" />
+                Lost
+              </button>
+            </>
+          )}
           <button
             onClick={() => onEdit(item.id)}
             className="p-1 text-xs rounded bg-gray-500/20 text-gray-400 hover:bg-gray-500/30 transition-all"
+            title={item.status !== 'pending' ? 'Редактировать сделку' : 'Редактировать'}
           >
             <Edit2 size={12} />
           </button>
           <button
             onClick={() => onDelete(item.id)}
             className="p-1 text-xs rounded bg-gray-500/20 text-gray-400 hover:bg-gray-500/30 transition-all"
+            title="Удалить сделку"
           >
             <Trash2 size={12} />
           </button>
@@ -166,27 +172,14 @@ function TickerInput({ dayKey, type, onSuccess }: {
 }) {
   const [ticker, setTicker] = useState('')
   const [rating, setRating] = useState(3)
-  const [predictionPrice, setPredictionPrice] = useState('')
+  const [predictionPrice, setPredictionPrice] = useState('0.50')
   const [notes, setNotes] = useState('')
   const [showForm, setShowForm] = useState(false)
-  const [userSettings, setUserSettings] = useState<any>(null)
-
-  useEffect(() => {
-    fetch('/api/settings')
-      .then(res => res.json())
-      .then(setUserSettings)
-      .catch(console.error)
-  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!ticker || !predictionPrice) return
-
-    // Calculate position size
-    const riskAmount = userSettings ?
-      Number(userSettings.deposit) * (Number(userSettings.riskPercentage) / 100) : 0
-    const positionSize = riskAmount / parseFloat(predictionPrice)
 
     try {
       const response = await fetch('/api/tickers', {
@@ -199,7 +192,6 @@ function TickerInput({ dayKey, type, onSuccess }: {
           rating,
           predictionPrice: parseFloat(predictionPrice),
           notes,
-          positionSize,
           confidenceLevel: rating
         })
       })
@@ -207,7 +199,7 @@ function TickerInput({ dayKey, type, onSuccess }: {
       if (response.ok) {
         setTicker('')
         setRating(3)
-        setPredictionPrice('')
+        setPredictionPrice('0.50')
         setNotes('')
         setShowForm(false)
         if (onSuccess) onSuccess()
@@ -246,20 +238,28 @@ function TickerInput({ dayKey, type, onSuccess }: {
       </div>
 
       <div>
-        <label className="text-xs font-medium mb-1 block" style={{ color: 'var(--text-secondary)' }}>
-          Цена предикшена (0-1)
+        <label className="text-xs font-medium mb-2 block" style={{ color: 'var(--text-secondary)' }}>
+          Цена предикшена: <span className="font-mono text-cyan-400">{parseFloat(predictionPrice).toFixed(2)}</span>
         </label>
-        <input
-          type="number"
-          step="0.01"
-          min="0.01"
-          max="0.99"
-          placeholder="0.65"
-          value={predictionPrice}
-          onChange={(e) => setPredictionPrice(e.target.value)}
-          className="input-trading w-full px-3 py-2 rounded-lg text-sm font-mono"
-          required
-        />
+        <div className="space-y-2">
+          <input
+            type="range"
+            min="0.01"
+            max="0.99"
+            step="0.01"
+            value={predictionPrice}
+            onChange={(e) => setPredictionPrice(e.target.value)}
+            className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer slider"
+            style={{
+              background: `linear-gradient(to right, var(--accent-cyan) 0%, var(--accent-cyan) ${(parseFloat(predictionPrice) / 0.99) * 100}%, #374151 ${(parseFloat(predictionPrice) / 0.99) * 100}%, #374151 100%)`
+            }}
+          />
+          <div className="flex justify-between text-xs text-gray-500">
+            <span>0.01</span>
+            <span>0.50</span>
+            <span>0.99</span>
+          </div>
+        </div>
       </div>
 
       <div>
@@ -378,9 +378,23 @@ function PriorityTasks({ tasks, onAddTask, onToggleTask, onEditTask, onDeleteTas
   const [newTask, setNewTask] = useState('')
   const [priority, setPriority] = useState(2)
   const [showInput, setShowInput] = useState(false)
-  const [editingTask, setEditingTask] = useState<string | null>(null)
-  const [editText, setEditText] = useState('')
-  const [editPriority, setEditPriority] = useState(2)
+  const [editingTask, setEditingTask] = useState<WeekendTask | null>(null)
+
+  // Функция для переупорядочивания
+  const handleReorder = async (taskIds: string[]) => {
+    try {
+      const response = await fetch('/api/tasks/reorder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taskIds })
+      })
+      if (!response.ok) {
+        throw new Error('Failed to reorder tasks')
+      }
+    } catch (error) {
+      console.error('Error reordering tasks:', error)
+    }
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -392,28 +406,6 @@ function PriorityTasks({ tasks, onAddTask, onToggleTask, onEditTask, onDeleteTas
     }
   }
 
-  const handleEditSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (editText.trim() && editingTask) {
-      onEditTask(editingTask, editText.trim(), editPriority)
-      setEditingTask(null)
-      setEditText('')
-      setEditPriority(2)
-    }
-  }
-
-  const startEdit = (task: WeekendTask) => {
-    setEditingTask(task.id)
-    setEditText(task.text)
-    setEditPriority(task.priority)
-  }
-
-  const cancelEdit = () => {
-    setEditingTask(null)
-    setEditText('')
-    setEditPriority(2)
-  }
-
   const getPriorityLabel = (priority: number) => {
     switch (priority) {
       case 3: return 'Высокий'
@@ -423,148 +415,26 @@ function PriorityTasks({ tasks, onAddTask, onToggleTask, onEditTask, onDeleteTas
     }
   }
 
-  const getPriorityColor = (priority: number) => {
-    switch (priority) {
-      case 3: return 'text-red-400'
-      case 2: return 'text-yellow-400'
-      case 1: return 'text-green-400'
-      default: return 'text-yellow-400'
-    }
-  }
-
-  const getPriorityBg = (priority: number) => {
-    switch (priority) {
-      case 3: return 'bg-red-500/10 border-red-500/30'
-      case 2: return 'bg-yellow-500/10 border-yellow-500/30'
-      case 1: return 'bg-green-500/10 border-green-500/30'
-      default: return 'bg-yellow-500/10 border-yellow-500/30'
-    }
-  }
-
   return (
     <div className="glass-card rounded-xl p-4" style={{ background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.05) 0%, rgba(245, 158, 11, 0.03) 100%)' }}>
       <div className="flex items-center gap-2 mb-4">
         <Target size={20} className="text-red-400" />
         <h3 className="font-bold text-gradient">Приоритетные задачи</h3>
+        <span className="text-xs text-gray-400 ml-auto">Перетаскивайте для сортировки</span>
       </div>
 
-      <div className="space-y-2 mb-4">
-        {tasks.map((task) => (
-          <div key={task.id}>
-            {editingTask === task.id ? (
-              // Режим редактирования
-              <div className={`p-3 rounded-lg border animate-slide-in ${
-                task.priority === 3 ? 'bg-red-500/10 border-red-500/30' :
-                task.priority === 2 ? 'bg-yellow-500/10 border-yellow-500/30' :
-                'bg-green-500/10 border-green-500/30'
-              }`}>
-                <form onSubmit={handleEditSubmit} className="space-y-2">
-                  <input
-                    type="text"
-                    value={editText}
-                    onChange={(e) => setEditText(e.target.value)}
-                    className="input-trading w-full px-3 py-2 rounded-lg text-sm"
-                    autoFocus
-                  />
-                  <div className="flex gap-1">
-                    {[
-                      { value: 1, label: 'Низкий' },
-                      { value: 2, label: 'Средний' },
-                      { value: 3, label: 'Высокий' }
-                    ].map(({ value, label }) => (
-                      <button
-                        key={value}
-                        type="button"
-                        onClick={() => setEditPriority(value)}
-                        className={`flex-1 py-1 px-1 rounded text-xs transition-all ${
-                          editPriority === value ? 'bg-white/20' : 'hover:bg-white/10'
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="flex gap-2">
-                    <button type="submit" className="btn-primary py-1 px-3 rounded text-xs">
-                      Сохранить
-                    </button>
-                    <button
-                      type="button"
-                      onClick={cancelEdit}
-                      className="btn-secondary py-1 px-3 rounded text-xs"
-                    >
-                      Отмена
-                    </button>
-                  </div>
-                </form>
-              </div>
-            ) : (
-              // Режим просмотра
-              <div
-                className={`flex items-start gap-3 p-3 rounded-lg hover:bg-white/5 transition-all cursor-pointer group animate-slide-in border ${
-                  task.priority === 3 ? 'bg-red-500/10 border-red-500/30' :
-                  task.priority === 2 ? 'bg-yellow-500/10 border-yellow-500/30' :
-                  'bg-green-500/10 border-green-500/30'
-                }`}
-              >
-                <div className="mt-0.5">
-                  <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all ${
-                    task.done
-                      ? 'bg-red-500 border-red-500'
-                      : 'border-gray-600 group-hover:border-red-400'
-                  }`}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onToggleTask(task.id)
-                  }}
-                  >
-                    {task.done && <Check size={10} className="text-white" />}
-                  </div>
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center gap-2">
-                      <span className={`text-xs font-bold ${getPriorityColor(task.priority || 1)}`}>
-                        {getPriorityLabel(task.priority || 1)}
-                      </span>
-                      <span className={`text-xs font-mono`} style={{ color: 'var(--text-muted)' }}>
-                        {task.priority === 3 ? '!!!' : task.priority === 2 ? '!!' : '!'}
-                      </span>
-                    </div>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          startEdit(task)
-                        }}
-                        className="p-1 rounded hover:bg-white/10 transition-colors"
-                        style={{ color: 'var(--text-muted)' }}
-                      >
-                        <Edit2 size={14} />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          onDeleteTask(task.id)
-                        }}
-                        className="p-1 rounded hover:bg-white/10 transition-colors"
-                        style={{ color: 'var(--text-muted)' }}
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </div>
-                  <span className={`text-sm ${task.done ? 'line-through opacity-60' : ''}`} style={{
-                    color: task.done ? 'var(--text-muted)' : 'var(--text-secondary)'
-                  }}>
-                    {task.text}
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
+      {tasks.length > 0 && (
+        <div className="mb-4">
+          <DraggableTaskList
+            tasks={tasks}
+            onReorder={handleReorder}
+            onToggleTask={onToggleTask}
+            onEditTask={onEditTask}
+            onDeleteTask={onDeleteTask}
+            onEdit={setEditingTask}
+          />
+        </div>
+      )}
 
       {!showInput ? (
         <button
@@ -632,6 +502,60 @@ function PriorityTasks({ tasks, onAddTask, onToggleTask, onEditTask, onDeleteTas
           </div>
         </form>
       )}
+
+      {/* Модальное окно редактирования */}
+      {editingTask && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="glass-card rounded-lg p-4 max-w-md w-full mx-4">
+            <h4 className="text-sm font-bold mb-3">Редактировать задачу</h4>
+            <form onSubmit={(e) => {
+              e.preventDefault()
+              if (editingTask.text.trim()) {
+                onEditTask(editingTask.id, editingTask.text, editingTask.priority)
+                setEditingTask(null)
+              }
+            }}>
+              <input
+                type="text"
+                value={editingTask.text}
+                onChange={(e) => setEditingTask({ ...editingTask, text: e.target.value })}
+                className="input-trading w-full px-3 py-2 rounded-lg text-sm mb-3"
+                autoFocus
+              />
+              <div className="flex gap-1 mb-3">
+                {[
+                  { value: 1, label: 'Низкий' },
+                  { value: 2, label: 'Средний' },
+                  { value: 3, label: 'Высокий' }
+                ].map(({ value, label }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setEditingTask({ ...editingTask, priority: value })}
+                    className={`flex-1 py-1 px-1 rounded text-xs transition-all ${
+                      editingTask.priority === value ? 'bg-white/20' : 'hover:bg-white/10'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <button type="submit" className="btn-primary py-1 px-3 rounded text-xs">
+                  Сохранить
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditingTask(null)}
+                  className="btn-secondary py-1 px-3 rounded text-xs"
+                >
+                  Отмена
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -646,6 +570,7 @@ export default function TraderPlanner() {
   const [userSettings, setUserSettings] = useState<any>(null)
   const [editingTicker, setEditingTicker] = useState<Ticker | null>(null)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false)
 
   // Load data function - с параметром для контроля загрузки
   const loadData = useCallback(async (showLoading = false) => {
@@ -814,14 +739,12 @@ export default function TraderPlanner() {
               </div>
               <div>
                 <h1 className="text-2xl font-bold tracking-tight">DeskTrade Terminal</h1>
-                {userSettings && (
-                  <div className="flex items-center gap-2 mt-1">
-                    <Wallet size={16} style={{ color: 'var(--text-secondary)' }} />
-                    <span className="font-mono text-sm" style={{ color: 'var(--text-secondary)' }}>
-                      Баланс: <span className="text-cyan-400">${userSettings.deposit.toFixed(2)}</span>
-                    </span>
-                  </div>
-                )}
+                <div className="flex items-center gap-2 mt-1">
+                  <Activity size={16} style={{ color: 'var(--text-secondary)' }} />
+                  <span className="font-mono text-sm" style={{ color: 'var(--text-secondary)' }}>
+                    Трейдинг терминал
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -846,6 +769,14 @@ export default function TraderPlanner() {
                   <ChevronRight size={20} style={{ color: 'var(--accent-cyan)' }} />
                 </button>
               </div>
+
+              <button
+                onClick={() => setIsExportModalOpen(true)}
+                className="text-sm px-4 py-2 rounded-lg btn-secondary flex items-center gap-2"
+              >
+                <Download size={16} />
+                Экспорт
+              </button>
 
               <button
                 onClick={() => router.push('/dashboard/settings')}
@@ -970,6 +901,12 @@ export default function TraderPlanner() {
         isOpen={isEditModalOpen}
         onClose={handleCloseEditModal}
         onSave={handleSaveTicker}
+      />
+
+      {/* Модальное окно экспорта анализа */}
+      <ExportModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
       />
     </div>
   )

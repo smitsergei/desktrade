@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Edit2, DollarSign, TrendingUp, AlertCircle } from 'lucide-react'
+import { Edit2, AlertCircle } from 'lucide-react'
 import Modal from './Modal'
 import FormField from './FormField'
 import StarRating from './StarRating'
@@ -14,8 +14,6 @@ interface Ticker {
   status: string
   predictionPrice: number
   actualResult?: number
-  profitLoss?: number
-  positionSize?: number
   confidenceLevel: number
   notes?: string
 }
@@ -77,28 +75,7 @@ export default function EditTickerModal({
     }
   }, [ticker, isOpen])
 
-  // Расчет P&L и размера позиции
-  const calculatePnL = () => {
-    if (!formData.actualResult || !formData.predictionPrice) return null
-
-    const predictionPrice = parseFloat(formData.predictionPrice)
-    const actualResult = parseFloat(formData.actualResult)
-
-    if (isNaN(predictionPrice) || isNaN(actualResult)) return null
-
-    // Для предикшен маркетов:
-    // Win: +размер позиции
-    // Loss: -размер позиции * цена предикшена
-    const positionSize = 100 // Примерный размер позиции
-    if (formData.status === 'won') {
-      return positionSize
-    } else if (formData.status === 'lost') {
-      return -positionSize * predictionPrice
-    }
-
-    return 0
-  }
-
+  
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {}
 
@@ -177,8 +154,6 @@ export default function EditTickerModal({
       onClose()
     }
   }
-
-  const calculatedPnL = calculatePnL()
 
   if (!ticker) return null
 
@@ -266,25 +241,7 @@ export default function EditTickerModal({
               </div>
             </FormField>
 
-            {calculatedPnL !== null && (
-              <FormField label="P&L">
-                <div className={`p-3 rounded-lg border ${
-                  calculatedPnL > 0
-                    ? 'bg-green-500/10 border-green-500/30 text-green-400'
-                    : calculatedPnL < 0
-                    ? 'bg-red-500/10 border-red-500/30 text-red-400'
-                    : 'bg-gray-500/10 border-gray-500/30 text-gray-400'
-                }`}>
-                  <div className="flex items-center gap-2">
-                    <TrendingUp size={16} />
-                    <span className="font-mono font-bold">
-                      ${calculatedPnL.toFixed(2)}
-                    </span>
-                  </div>
-                </div>
-              </FormField>
-            )}
-          </div>
+            </div>
         </div>
 
         <FormField label="Заметки">
