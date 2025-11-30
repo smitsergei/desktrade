@@ -1,16 +1,8 @@
-import { withAuth } from 'next-auth/middleware'
-
-export default withAuth(
-  function middleware(req) {
-    // Middleware логика здесь
-  },
-  {
-    callbacks: {
-      authorized: ({ token }) => !!token
-    },
-  }
-)
+// Временно отключаем middleware для отладки
+export function middleware(req: any) {
+  // Ничего не делаем
+}
 
 export const config = {
-  matcher: ['/dashboard/:path*']
+  matcher: []
 }

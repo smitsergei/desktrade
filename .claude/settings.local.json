@@ -10,7 +10,9 @@
       "Bash(git commit:*)",
       "Bash(gh repo create:*)",
       "Bash(npx vercel:*)",
-      "Bash(git push)"
+      "Bash(git push)",
+      "Bash(npx prisma db push:*)",
+      "Bash(npm run db:seed:*)"
     ],
     "deny": [],
     "ask": []
