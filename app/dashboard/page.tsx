@@ -641,7 +641,7 @@ export default function TraderPlanner() {
   const handleToggleTask = async (taskId: string) => {
     try {
       // Находим текущую задачу в данных недели
-      const currentTask = weekData.weekendTasks?.find(task => task.id === taskId)
+      const currentTask = tasks?.find(task => task.id === taskId)
 
       const response = await fetch(`/api/tasks/${taskId}`, {
         method: 'PUT',
