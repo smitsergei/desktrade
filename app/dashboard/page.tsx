@@ -36,6 +36,7 @@ import { Ticker, WeekendTask } from '@/types'
 import EditTickerModal from '@/components/ui/EditTickerModal'
 import ExportModal from '@/components/ui/ExportModal'
 import DraggableTaskList from '@/components/ui/DraggableTaskList'
+import DatePicker from '@/components/ui/DatePicker'
 
 // Enhanced Loading Component
 function LoadingScreen() {
@@ -370,23 +371,25 @@ function TickerList({ items, dayKey, type, onSuccess, onEditTicker }: {
 // Enhanced Priority Tasks
 function PriorityTasks({ tasks, onAddTask, onToggleTask, onEditTask, onDeleteTask, onReorder }: {
   tasks: WeekendTask[]
-  onAddTask: (text: string, priority: number) => void
+  onAddTask: (text: string, priority: number, deadline?: Date | null) => void
   onToggleTask: (id: string) => void
-  onEditTask: (id: string, text: string, priority: number) => void
+  onEditTask: (id: string, text: string, priority: number, deadline?: Date | null) => void
   onDeleteTask: (id: string) => void
   onReorder: (taskIds: string[]) => Promise<void>
 }) {
   const [newTask, setNewTask] = useState('')
   const [priority, setPriority] = useState(2)
+  const [deadline, setDeadline] = useState<Date | null>(null)
   const [showInput, setShowInput] = useState(false)
   const [editingTask, setEditingTask] = useState<WeekendTask | null>(null)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (newTask.trim()) {
-      onAddTask(newTask.trim(), priority)
+      onAddTask(newTask.trim(), priority, deadline)
       setNewTask('')
       setPriority(2)
+      setDeadline(null)
       setShowInput(false)
     }
   }
@@ -439,6 +442,20 @@ function PriorityTasks({ tasks, onAddTask, onToggleTask, onEditTask, onDeleteTas
             className="input-trading w-full px-3 py-2 rounded-lg text-sm"
             autoFocus
           />
+
+          {/* DatePicker для дедлайна */}
+          <div>
+            <label className="text-xs font-medium mb-2 block" style={{ color: 'var(--text-secondary)' }}>
+              Дедлайн (опционально)
+            </label>
+            <DatePicker
+              selectedDate={deadline}
+              onDateChange={setDeadline}
+              placeholder="Выберите дедлайн"
+              className="w-full"
+            />
+          </div>
+
           <div>
             <label className="text-xs font-medium mb-2 block" style={{ color: 'var(--text-secondary)' }}>
               Приоритет
@@ -479,6 +496,7 @@ function PriorityTasks({ tasks, onAddTask, onToggleTask, onEditTask, onDeleteTas
                 setShowInput(false)
                 setNewTask('')
                 setPriority(2)
+                setDeadline(null)
               }}
               className="btn-secondary py-2 px-3 rounded text-sm"
             >
@@ -496,7 +514,7 @@ function PriorityTasks({ tasks, onAddTask, onToggleTask, onEditTask, onDeleteTas
             <form onSubmit={(e) => {
               e.preventDefault()
               if (editingTask.text.trim()) {
-                onEditTask(editingTask.id, editingTask.text, editingTask.priority)
+                onEditTask(editingTask.id, editingTask.text, editingTask.priority, editingTask.deadline)
                 setEditingTask(null)
               }
             }}>
@@ -507,6 +525,20 @@ function PriorityTasks({ tasks, onAddTask, onToggleTask, onEditTask, onDeleteTas
                 className="input-trading w-full px-3 py-2 rounded-lg text-sm mb-3"
                 autoFocus
               />
+
+              {/* DatePicker для дедлайна */}
+              <div className="mb-3">
+                <label className="text-xs font-medium mb-2 block" style={{ color: 'var(--text-secondary)' }}>
+                  Дедлайн (опционально)
+                </label>
+                <DatePicker
+                  selectedDate={editingTask.deadline ? new Date(editingTask.deadline) : null}
+                  onDateChange={(date) => setEditingTask({ ...editingTask, deadline: date })}
+                  placeholder="Выберите дедлайн"
+                  className="w-full"
+                />
+              </div>
+
               <div className="flex gap-1 mb-3">
                 {[
                   { value: 1, label: 'Низкий' },
@@ -595,7 +627,7 @@ export default function TraderPlanner() {
     loadData(true)
   }, [status, loadData])
 
-  const handleAddTask = async (text: string, priority: number = 2) => {
+  const handleAddTask = async (text: string, priority: number = 2, deadline?: Date | null) => {
     try {
       const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 })
       const response = await fetch('/api/tasks', {
@@ -604,7 +636,8 @@ export default function TraderPlanner() {
         body: JSON.stringify({
           text,
           weekStartDate: weekStart.toISOString(),
-          priority
+          priority,
+          ...(deadline && { deadline: deadline.toISOString() })
         })
       })
 
@@ -658,12 +691,16 @@ export default function TraderPlanner() {
     }
   }
 
-  const handleEditTask = async (taskId: string, text: string, priority: number) => {
+  const handleEditTask = async (taskId: string, text: string, priority: number, deadline?: Date | null) => {
     try {
       const response = await fetch(`/api/tasks/${taskId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, priority })
+        body: JSON.stringify({
+          text,
+          priority,
+          ...(deadline !== undefined && { deadline: deadline ? deadline.toISOString() : null })
+        })
       })
 
       if (response.ok) {

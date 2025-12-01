@@ -64,13 +64,32 @@ export async function PUT(
       return NextResponse.json({ error: 'Task not found' }, { status: 404 })
     }
 
+    // Валидация и подготовка дедлайна
+    let deadlineUpdate = {}
+    if (body.deadline !== undefined) {
+      if (body.deadline === null) {
+        deadlineUpdate = { deadline: null }
+      } else {
+        const deadlineDate = new Date(body.deadline)
+        // Проверяем, что дата не в прошлом
+        if (deadlineDate < new Date(new Date().setHours(0, 0, 0, 0))) {
+          return NextResponse.json(
+            { error: 'Deadline cannot be in the past' },
+            { status: 400 }
+          )
+        }
+        deadlineUpdate = { deadline: deadlineDate }
+      }
+    }
+
     // Обновляем задачу
     const updatedTask = await prisma.weekendTask.update({
       where: { id: taskId },
       data: {
         ...(body.text !== undefined && { text: body.text }),
         ...(body.priority !== undefined && { priority: body.priority }),
-        ...(body.done !== undefined && { done: body.done })
+        ...(body.done !== undefined && { done: body.done }),
+        ...deadlineUpdate
       }
     })
 

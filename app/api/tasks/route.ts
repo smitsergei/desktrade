@@ -11,9 +11,22 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { text, weekStartDate, priority = 1 } = body
+    const { text, weekStartDate, priority = 1, deadline } = body
 
-    console.log('Creating task:', { text, weekStartDate, priority, userId: session.user.id })
+    console.log('Creating task:', { text, weekStartDate, priority, deadline, userId: session.user.id })
+
+    // Валидация дедлайна
+    let deadlineDate = null
+    if (deadline) {
+      deadlineDate = new Date(deadline)
+      // Проверяем, что дата не в прошлом
+      if (deadlineDate < new Date(new Date().setHours(0, 0, 0, 0))) {
+        return NextResponse.json(
+          { error: 'Deadline cannot be in the past' },
+          { status: 400 }
+        )
+      }
+    }
 
     // Находим максимальный порядок для задач с таким же приоритетом
     const maxOrder = await prisma.weekendTask.findFirst({
@@ -32,7 +45,8 @@ export async function POST(request: NextRequest) {
         text,
         weekStartDate: new Date(weekStartDate),
         priority,
-        order: (maxOrder?.order || 0) + 1
+        order: (maxOrder?.order || 0) + 1,
+        ...(deadlineDate && { deadline: deadlineDate })
       }
     })
 

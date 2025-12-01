@@ -26,6 +26,7 @@ export interface WeekendTask {
   done: boolean
   priority: number // 1 - низкий, 2 - средний, 3 - высокий
   order: number // Порядок в пределах группы приоритета
+  deadline?: Date | null // Опциональный дедлайн
   createdAt: Date
 }
 

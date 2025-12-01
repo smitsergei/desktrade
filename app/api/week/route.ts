@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { startOfWeek, endOfWeek, format } from 'date-fns'
+import { startOfWeek, endOfWeek, format, isPast, startOfDay } from 'date-fns'
 
 export async function GET(request: NextRequest) {
   try {
@@ -90,32 +90,70 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Получаем задачи на выходные
+    // Получаем задачи
     const weekStart = startOfWeek(startDate, { weekStartsOn: 1 })
-    // Создаем диапазон дат для недели (понедельник - воскресенье)
     const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 })
+    const today = startOfDay(new Date())
 
-    console.log('Fetching tasks for week:', { weekStart, weekEnd, userId: session.user.id })
+    console.log('Fetching tasks for week:', { weekStart, weekEnd, today, userId: session.user.id })
 
     const weekendTasks = await prisma.weekendTask.findMany({
       where: {
         userId: session.user.id,
-        weekStartDate: {
-          gte: weekStart,
-          lte: weekEnd
-        }
+        OR: [
+          // Задачи с дедлайном (включая просроченные)
+          {
+            deadline: {
+              not: null
+            }
+          },
+          // Задачи без дедлайна только за текущую неделю
+          {
+            deadline: null,
+            weekStartDate: {
+              gte: weekStart,
+              lte: weekEnd
+            }
+          }
+        ]
       },
       orderBy: [
-        { priority: 'desc' }, // Сначала по приоритету (высокий к низкому)
-        { order: 'asc' },      // Затем по порядку в пределах приоритета
-        { done: 'asc' },       // Затем невыполненные
-        { createdAt: 'desc' }  // Потом новые
+        { priority: 'desc' }, // По приоритету (высокий к низкому)
+        { deadline: 'asc' },  // По дедлайну (ближайшие первыми)
+        { order: 'asc' },     // По порядку в пределах приоритета
+        { done: 'asc' },      // Невыполненные первые
+        { createdAt: 'desc' } // Новые первые
       ]
     })
 
-    console.log('Found tasks:', weekendTasks.length)
+    // Дополнительная сортировка на клиенте для учета просроченных
+    const sortedTasks = weekendTasks.sort((a, b) => {
+      // 1. Просроченные задачи (deadline < сегодня) - отображаются первыми
+      const aOverdue = a.deadline && isPast(a.deadline)
+      const bOverdue = b.deadline && isPast(b.deadline)
 
-    result.weekendTasks = weekendTasks
+      if (aOverdue && !bOverdue) return -1
+      if (!aOverdue && bOverdue) return 1
+
+      // 2. По приоритету (3, 2, 1)
+      if (a.priority !== b.priority) {
+        return b.priority - a.priority
+      }
+
+      // 3. По дедлайну (ближайшие первыми)
+      if (a.deadline && b.deadline) {
+        return a.deadline.getTime() - b.deadline.getTime()
+      }
+      if (a.deadline && !b.deadline) return -1
+      if (!a.deadline && b.deadline) return 1
+
+      // 4. По порядку
+      return a.order - b.order
+    })
+
+    console.log('Found tasks:', sortedTasks.length)
+
+    result.weekendTasks = sortedTasks
 
     return NextResponse.json(result)
   } catch (error) {

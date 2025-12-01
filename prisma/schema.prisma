@@ -80,6 +80,7 @@ model WeekendTask {
   done         Boolean  @default(false)
   priority     Int      @default(1) @db.SmallInt // 1 - низкий, 2 - средний, 3 - высокий
   order        Int      @default(1) // Порядок в пределах группы приоритета
+  deadline     DateTime? @db.Date // Опциональный дедлайн
   createdAt    DateTime @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

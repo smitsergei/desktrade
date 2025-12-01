@@ -23,6 +23,8 @@ import {
 import { restrictToVerticalAxis } from '@dnd-kit/modifiers'
 import { GripVertical, Edit2, Trash2 } from 'lucide-react'
 import { WeekendTask } from '@/types'
+import DeadlineProgress from './DeadlineProgress'
+import { isPast } from 'date-fns'
 
 interface DraggableTaskListProps {
   tasks: WeekendTask[]
@@ -193,6 +195,27 @@ function SortableTaskItem({
     }
   }
 
+  // Определяем цвет рамки в зависимости от дедлайна
+  const getDeadlineBorderColor = () => {
+    if (!task.deadline) return 'border-gray-700/50'
+
+    const now = new Date()
+    const deadline = new Date(task.deadline)
+    const hoursUntilDeadline = (deadline.getTime() - now.getTime()) / (1000 * 60 * 60)
+
+    if (isPast(deadline)) {
+      return 'border-red-500/50 bg-red-500/5' // Просрочено - красный фон
+    }
+    if (hoursUntilDeadline <= 24) {
+      return 'border-orange-500/50 bg-orange-500/5' // Срочно - оранжевый фон
+    }
+    if (hoursUntilDeadline <= 72) {
+      return 'border-yellow-500/50 bg-yellow-500/5' // Скоро - желтый фон
+    }
+
+    return 'border-gray-700/50' // Есть время - стандартный цвет
+  }
+
   const getPriorityLabel = (priority: number) => {
     switch (priority) {
       case 3: return 'Высокий'
@@ -215,7 +238,7 @@ function SortableTaskItem({
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-start gap-3 p-4 rounded-xl bg-gray-800/50 backdrop-blur-sm hover:bg-gray-800/70 transition-all cursor-move group border border-gray-700/50"
+      className={`flex items-start gap-3 p-4 rounded-xl bg-gray-800/50 backdrop-blur-sm hover:bg-gray-800/70 transition-all cursor-move group border ${getDeadlineBorderColor()}`}
     >
       {/* Drag handle */}
       <div
@@ -249,6 +272,17 @@ function SortableTaskItem({
 
       {/* Task content */}
       <div className="flex-1 min-w-0">
+        {/* Дедлайн - отображается если установлен */}
+        {task.deadline && (
+          <div className="mb-2">
+            <DeadlineProgress
+              deadline={new Date(task.deadline)}
+              createdAt={new Date(task.createdAt)}
+              compact={true}
+            />
+          </div>
+        )}
+
         <div className="flex items-center justify-between mb-2">
           {/* Priority indicator - less prominent */}
           <div className="flex items-center gap-2">
