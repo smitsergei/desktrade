@@ -116,7 +116,7 @@ export default function DeadlineProgress({
     }
     return {
       icon: CheckCircle,
-      textClass: 'text-emerald-400',
+      textClass: 'text-blue-400',
       label: 'Время'
     }
   }
@@ -125,13 +125,13 @@ export default function DeadlineProgress({
 
   if (compact) {
     return (
-      <div className={`flex items-center gap-2 ${textClass} ${className}`}>
+      <div className={`flex items-center gap-2 px-2 py-1 rounded-md bg-gray-800/50 ${className}`}>
         <Icon className="w-3 h-3 flex-shrink-0" />
         <span className="text-xs font-medium">
           {format(deadline, 'dd MMM', { locale: ru })}
         </span>
-        <span className="text-xs">•</span>
-        <span className="text-xs">{formatTimeRemaining()}</span>
+        <span className="text-xs text-gray-400">•</span>
+        <span className="text-xs font-medium">{formatTimeRemaining()}</span>
       </div>
     )
   }

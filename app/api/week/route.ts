@@ -129,8 +129,8 @@ export async function GET(request: NextRequest) {
     // Дополнительная сортировка на клиенте для учета просроченных
     const sortedTasks = weekendTasks.sort((a, b) => {
       // 1. Просроченные задачи (deadline < сегодня) - отображаются первыми
-      const aOverdue = a.deadline && isPast(a.deadline)
-      const bOverdue = b.deadline && isPast(b.deadline)
+      const aOverdue = a.deadline && isPast(new Date(a.deadline))
+      const bOverdue = b.deadline && isPast(new Date(b.deadline))
 
       if (aOverdue && !bOverdue) return -1
       if (!aOverdue && bOverdue) return 1
@@ -142,7 +142,7 @@ export async function GET(request: NextRequest) {
 
       // 3. По дедлайну (ближайшие первыми)
       if (a.deadline && b.deadline) {
-        return a.deadline.getTime() - b.deadline.getTime()
+        return new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
       }
       if (a.deadline && !b.deadline) return -1
       if (!a.deadline && b.deadline) return 1
@@ -152,6 +152,7 @@ export async function GET(request: NextRequest) {
     })
 
     console.log('Found tasks:', sortedTasks.length)
+    console.log('Tasks with deadlines:', sortedTasks.filter(t => t.deadline).map(t => ({ id: t.id, deadline: t.deadline })))
 
     result.weekendTasks = sortedTasks
 

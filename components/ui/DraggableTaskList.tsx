@@ -204,16 +204,16 @@ function SortableTaskItem({
     const hoursUntilDeadline = (deadline.getTime() - now.getTime()) / (1000 * 60 * 60)
 
     if (isPast(deadline)) {
-      return 'border-red-500/50 bg-red-500/5' // Просрочено - красный фон
+      return 'border-red-500/70 bg-red-500/10 animate-pulse' // Просрочено - красный фон с анимацией
     }
     if (hoursUntilDeadline <= 24) {
-      return 'border-orange-500/50 bg-orange-500/5' // Срочно - оранжевый фон
+      return 'border-orange-500/70 bg-orange-500/10' // Срочно - оранжевый фон
     }
     if (hoursUntilDeadline <= 72) {
-      return 'border-yellow-500/50 bg-yellow-500/5' // Скоро - желтый фон
+      return 'border-yellow-500/70 bg-yellow-500/10' // Скоро - желтый фон
     }
 
-    return 'border-gray-700/50' // Есть время - стандартный цвет
+    return 'border-blue-500/30 bg-blue-500/5' // Есть время - синие акценты
   }
 
   const getPriorityLabel = (priority: number) => {
@@ -276,8 +276,8 @@ function SortableTaskItem({
         {task.deadline && (
           <div className="mb-2">
             <DeadlineProgress
-              deadline={new Date(task.deadline)}
-              createdAt={new Date(task.createdAt)}
+              deadline={typeof task.deadline === 'string' ? new Date(task.deadline) : task.deadline}
+              createdAt={typeof task.createdAt === 'string' ? new Date(task.createdAt) : task.createdAt}
               compact={true}
             />
           </div>
