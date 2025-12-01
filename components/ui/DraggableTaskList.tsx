@@ -112,63 +112,46 @@ export default function DraggableTaskList({
   }, {} as Record<number, typeof sortedTasks>)
 
   return (
-    <div className="space-y-4">
-      {[3, 2, 1].map(priority => {
-        const priorityTasks = tasksByPriority[priority] || []
-        if (priorityTasks.length === 0) return null
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      modifiers={[restrictToVerticalAxis]}
+    >
+      <SortableContext items={tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
+        <div className="space-y-3">
+          {tasks.map((task) => (
+            <SortableTaskItem
+              key={task.id}
+              task={task}
+              onToggle={onToggleTask}
+              onEdit={() => onEdit(task)}
+              onDelete={onDeleteTask}
+            />
+          ))}
+        </div>
+      </SortableContext>
 
-        const priorityLabel = priority === 3 ? 'Высокий приоритет' : priority === 2 ? 'Средний приоритет' : 'Низкий приоритет'
-        const priorityColor = priority === 3 ? 'text-red-400' : priority === 2 ? 'text-yellow-400' : 'text-green-400'
-
-        return (
-          <div key={priority}>
-            <div className={`text-xs font-medium mb-2 ${priorityColor}`}>
-              {priorityLabel}
-            </div>
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragStart={handleDragStart}
-              onDragEnd={handleDragEnd}
-              modifiers={[restrictToVerticalAxis]}
-            >
-              <SortableContext items={priorityTasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
-                <div className="space-y-2">
-                  {priorityTasks.map((task) => (
-                    <SortableTaskItem
-                      key={task.id}
-                      task={task}
-                      onToggle={onToggleTask}
-                      onEdit={() => onEdit(task)}
-                      onDelete={onDeleteTask}
-                    />
-                  ))}
+      <DragOverlay>
+        {activeId ? (
+          <div className="bg-gray-800/95 backdrop-blur-sm rounded-xl p-4 shadow-2xl border border-gray-600/50">
+            <div className="flex items-start gap-3">
+              <div className="mt-1">
+                <div className="w-5 h-5 rounded-lg border-2 border-cyan-400/50 flex items-center justify-center">
+                  <div className="w-3 h-3 bg-cyan-400/80 rounded-full"></div>
                 </div>
-              </SortableContext>
-
-              <DragOverlay>
-                {activeId ? (
-                  <div className="bg-gray-800 rounded-lg p-3 shadow-2xl border border-cyan-500/50 opacity-95">
-                    <div className="flex items-start gap-3">
-                      <div className="mt-0.5">
-                        <div className="w-4 h-4 rounded border-2 border-cyan-400 flex items-center justify-center">
-                          <div className="w-2 h-2 bg-cyan-400 rounded-full"></div>
-                        </div>
-                      </div>
-                      <div className="flex-1">
-                        <span className="text-sm text-white">
-                          {tasks.find(t => t.id === activeId)?.text}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ) : null}
-              </DragOverlay>
-            </DndContext>
+              </div>
+              <div className="flex-1">
+                <span className="text-base text-white">
+                  {tasks.find(t => t.id === activeId)?.text}
+                </span>
+              </div>
+            </div>
           </div>
-        )
-      })}
-    </div>
+        ) : null}
+      </DragOverlay>
+    </DndContext>
   )
 }
 
@@ -232,43 +215,54 @@ function SortableTaskItem({
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex items-start gap-3 p-3 rounded-lg hover:bg-white/5 transition-all cursor-move group border ${
-        getPriorityColor(task.priority || 1)
-      }`}
+      className="flex items-start gap-3 p-4 rounded-xl bg-gray-800/50 backdrop-blur-sm hover:bg-gray-800/70 transition-all cursor-move group border border-gray-700/50"
     >
       {/* Drag handle */}
       <div
         {...attributes}
         {...listeners}
-        className="mt-0.5 cursor-grab active:cursor-grabbing"
+        className="mt-1 cursor-grab active:cursor-grabbing"
       >
         <GripVertical size={16} className="text-gray-500 hover:text-gray-400 transition-colors" />
       </div>
 
       {/* Checkbox */}
-      <div className="mt-0.5">
+      <div className="mt-1">
         <div
-          className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all cursor-pointer ${
+          className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all cursor-pointer ${
             task.done
-              ? 'bg-red-500 border-red-500'
-              : 'border-gray-600 group-hover:border-red-400'
+              ? 'bg-emerald-500 border-emerald-500 shadow-lg shadow-emerald-500/25'
+              : 'border-gray-600 hover:border-emerald-500/50 group-hover:border-emerald-500'
           }`}
           onClick={(e) => {
             e.stopPropagation()
             onToggle(task.id)
           }}
         >
-          {task.done && <div className="w-2 h-2 bg-white rounded-full" />}
+          {task.done && (
+            <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+            </svg>
+          )}
         </div>
       </div>
 
       {/* Task content */}
-      <div className="flex-1">
-        <div className="flex items-center justify-between mb-1">
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between mb-2">
+          {/* Priority indicator - less prominent */}
           <div className="flex items-center gap-2">
-            <span className={`text-xs font-bold ${getPriorityColorText(task.priority || 1)}`}>
-              {getPriorityLabel(task.priority || 1)}
-            </span>
+            <div
+              className={`text-xs font-medium px-2 py-1 rounded-full ${
+                task.priority === 3
+                  ? 'bg-red-500/20 text-red-400'
+                  : task.priority === 2
+                  ? 'bg-yellow-500/20 text-yellow-400'
+                  : 'bg-emerald-500/20 text-emerald-400'
+              }`}
+            >
+              {task.priority === 3 ? '!' : task.priority === 2 ? '!!' : '!!!'}
+            </div>
           </div>
           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <button
@@ -276,7 +270,7 @@ function SortableTaskItem({
                 e.stopPropagation()
                 onEdit()
               }}
-              className="p-1 rounded hover:bg-white/10 transition-colors"
+              className="p-1.5 rounded-lg hover:bg-white/10 transition-all hover:scale-110"
               style={{ color: 'var(--text-muted)' }}
             >
               <Edit2 size={14} />
@@ -286,21 +280,38 @@ function SortableTaskItem({
                 e.stopPropagation()
                 onDelete(task.id)
               }}
-              className="p-1 rounded hover:bg-white/10 transition-colors"
+              className="p-1.5 rounded-lg hover:bg-white/10 transition-all hover:scale-110"
               style={{ color: 'var(--text-muted)' }}
             >
               <Trash2 size={14} />
             </button>
           </div>
         </div>
-        <span
-          className={`text-sm ${task.done ? 'line-through opacity-60' : ''}`}
-          style={{
-            color: task.done ? 'var(--text-muted)' : 'var(--text-secondary)'
-          }}
-        >
-          {task.text}
-        </span>
+        {/* Main task text - more prominent */}
+        <div className="text-base leading-relaxed">
+          <span
+            className={`${task.done ? 'line-through opacity-50' : ''} font-normal`}
+            style={{
+              color: task.done ? 'var(--text-muted)' : 'var(--text-primary)'
+            }}
+          >
+            {task.text}
+          </span>
+        </div>
+        {/* Priority label - subtle */}
+        <div className="mt-1">
+          <span
+            className={`text-xs ${
+              task.priority === 3
+                ? 'text-red-400/70'
+                : task.priority === 2
+                ? 'text-yellow-400/70'
+                : 'text-emerald-400/70'
+            }`}
+          >
+            {task.priority === 3 ? 'Высокий приоритет' : task.priority === 2 ? 'Средний приоритет' : 'Низкий приоритет'}
+          </span>
+        </div>
       </div>
     </div>
   )
